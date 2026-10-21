@@ -6,7 +6,7 @@ Legend: **Tested** = covered by automated tests that passed in this build enviro
 
 ## Automated test results (this build)
 
-* `npm test` — 17/17 passed (time zone, schedule, recurrence, task lists, reminders, server sync, scheduler)
+* `npm test` — 18/18 passed (time zone, schedule, recurrence, task lists, reminders, server sync, scheduler)
 * `npm run test:e2e` — 24/24 simulated checks passed (headless Chromium 440×956, 320×568, 1280×800)
 * `node test/web-app.mjs` — 8/8 simulated web-app checks passed (stand-in claude.ai runtime)
 
@@ -20,6 +20,14 @@ Legend: **Tested** = covered by automated tests that passed in this build enviro
 | In-app confirmations (browser dialogs are blocked there), export through the platform save prompt, copy backup | Simulated |
 | Reminders shown only while the page is open; push when closed is **not available** in this edition | Stated in the app |
 | **Behaviour inside the real claude.ai viewer, Safari and the Claude iOS app** | **Unverified** |
+
+## Daily quote (Today screen)
+
+| Feature | State |
+|---|---|
+| Feel-good quote at the top of Today, same all day, new each day | Simulated (Pages edition) |
+| Fetched from ZenQuotes every morning at 6:00 AM IST by the publish workflow into `quote.json` | Workflow written; first live fetch to be confirmed in the Actions log |
+| Offline / fetch failed / claude.ai and self-hosted editions: rotating built-in quote (30 quotes) | Tested + Simulated |
 
 ## Milestone 1 — Plan ✔
 Screen flow, stack, hosting and costs: docs/PLAN.md.

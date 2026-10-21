@@ -143,3 +143,11 @@ test('task reminders cancel on completion and move on reschedule', () => {
   const keys = dueReminders({ tasks: [moved], settings }, ...win).map((d) => d.key);
   assert.deepEqual(keys, ['t:t1:2026-10-27T10:00']);
 });
+
+test('built-in quote is stable for a day and changes the next day', async () => {
+  const { builtInQuote, QUOTES } = await import('../public/js/core/quotes.js');
+  const a = builtInQuote('2026-10-21');
+  assert.deepEqual(builtInQuote('2026-10-21'), a);
+  assert.notEqual(builtInQuote('2026-10-22').q, a.q);
+  assert.ok(QUOTES.every(([q, by]) => q && by));
+});

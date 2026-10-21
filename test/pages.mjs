@@ -57,6 +57,20 @@ await check('Manifest and icons resolve under the sub-path', async () => {
   const ok = await p.evaluate(async () => (await fetch('icons/apple-touch-icon.png')).ok);
   assert.ok(ok);
 });
+await check('Today shows a quote: built-in without quote.json, the web quote when published', async () => {
+  await p.goto(BASE + '#today');
+  await p.locator('.quote blockquote').waitFor();
+  assert.ok((await p.locator('.quote blockquote').innerText()).length > 5);
+  const { todayStr } = await import('../public/js/core/time.js');
+  fs.writeFileSync(path.join(dir, 'quote.json'), JSON.stringify({ date: todayStr('Asia/Kolkata'), q: 'Test quote from the web.', a: 'Test Author', source: 'zenquotes' }));
+  await p.evaluate(() => localStorage.removeItem('myday-quote'));
+  await p.reload();
+  await p.getByText('Test quote from the web.').waitFor();
+  await p.getByText('— Test Author').waitFor();
+  fs.rmSync(path.join(dir, 'quote.json'));
+  await p.reload(); // cached for the day, no refetch needed
+  await p.getByText('Test quote from the web.').waitFor();
+});
 await check('Data page explains device storage and links to the synced version', async () => {
   await p.goto(BASE + '#more/sync');
   await p.getByText('Nothing is sent to any server').waitFor();

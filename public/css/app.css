@@ -90,6 +90,15 @@ main { min-height: 100dvh; }
   gap: 14px;
 }
 .screen > * { min-width: 0; }
+.quote {
+  margin: 0; padding: 14px 16px; border-radius: var(--radius);
+  background: var(--attn-weak); color: var(--text); border: 1px solid var(--line);
+}
+.quote blockquote { margin: 0; font-size: 1.02rem; line-height: 1.45; font-style: italic; overflow-wrap: anywhere; }
+.quote blockquote::before { content: '“'; }
+.quote blockquote::after { content: '”'; }
+.quote figcaption { margin-top: 6px; font-size: 0.86rem; color: var(--muted); }
+.quote a { color: inherit; }
 .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .top > div { min-width: 0; }
 .top.sub { flex-direction: column; gap: 4px; }

@@ -1,10 +1,21 @@
-import { html, useState } from '../../vendor/preact-htm.js';
+import { html, useState, useEffect } from '../../vendor/preact-htm.js';
 import { useStore, useClock, Card, TaskList, TaskRow, EmptyState, openSheet, QuickCapture, TaskEditor, toast, SyncPill, Field, DateQuick } from '../ui.js';
 import * as M from '../model.js';
 import { currentAndNext, minutesLeft, adminThemeFor } from '../core/schedule.js';
 import { tasksForList, priorities, upcomingDeadlines, deadlineLabel, followUpDue } from '../core/tasks.js';
 import { fmtTime, fmtDate, addDays, relDate } from '../core/time.js';
 import { MONEY_TYPES } from '../core/defaults.js';
+import { builtInQuote } from '../core/quotes.js';
+import { cachedQuote, loadQuote } from '../quote.js';
+
+function QuoteBanner({ today }) {
+  const [quote, setQuote] = useState(() => cachedQuote(today) || builtInQuote(today));
+  useEffect(() => { let live = true; loadQuote(today).then((x) => live && setQuote(x)); return () => { live = false; }; }, [today]);
+  return html`<figure class="quote" aria-label="Today’s quote">
+    <blockquote>${quote.q}</blockquote>
+    <figcaption>— ${quote.a}${quote.source === 'zenquotes' && html` · <a href="https://zenquotes.io/" target="_blank" rel="noopener">ZenQuotes</a>`}</figcaption>
+  </figure>`;
+}
 
 function duration(min) {
   if (min == null) return '';
@@ -113,6 +124,7 @@ export function TodayView() {
   const visibleRest = showAll ? rest : rest.slice(0, 6);
 
   return html`<div class="screen">
+    <${QuoteBanner} today=${today} />
     <header class="top">
       <div><p class="eyebrow">Today</p><h1>${fmtDate(today, { long: true })}</h1></div>
       <${SyncPill} />
