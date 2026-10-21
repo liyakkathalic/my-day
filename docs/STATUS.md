@@ -21,6 +21,17 @@ Legend: **Tested** = covered by automated tests that passed in this build enviro
 | Reminders shown only while the page is open; push when closed is **not available** in this edition | Stated in the app |
 | **Behaviour inside the real claude.ai viewer, Safari and the Claude iOS app** | **Unverified** |
 
+## Cloudflare edition (live sync)
+
+| Feature | State |
+|---|---|
+| Worker + D1 sync API, same rules as the self-hosted server (revisions, conflicts never overwrite) | Tested against the real Worker under `wrangler dev` (11/11 checks) |
+| Live updates between two devices (4-second check while open) | Simulated: a new task arrived on the other device in about 6 s |
+| Password sign-in, one-time setup code, lockout after failed attempts | Simulated |
+| D1 database `my-day` created in the Cloudflare account | Done |
+| Deployed at workers.dev | **Waiting for the repository to be connected in Cloudflare** |
+| Push notifications with the app closed | Not built yet for this edition |
+
 ## Daily quote (Today screen)
 
 | Feature | State |

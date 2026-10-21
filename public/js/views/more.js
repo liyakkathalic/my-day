@@ -1,7 +1,7 @@
 import { html } from '../../vendor/preact-htm.js';
 import { useStore, SyncPill, syncLabel } from '../ui.js';
 import * as store from '../store.js';
-import { IS_ARTIFACT, IS_LOCAL } from '../config.js';
+import { IS_ARTIFACT, IS_LOCAL, IS_CLOUD } from '../config.js';
 
 const ITEMS = [
   ['Plan', [
@@ -34,7 +34,7 @@ export function MoreView() {
         <span class="menu-title">${title}</span><span class="menu-desc">${desc || s.text}</span><span class="chev" aria-hidden="true">›</span>
       </a></li>`)}</ul>
     </section>`)}
-    <p class="hint center">My Day · version 0.1${IS_ARTIFACT ? ' · web app' : IS_LOCAL ? ' · device edition' : ''} · Private, single-user</p>
+    <p class="hint center">My Day · version 0.1${IS_ARTIFACT ? ' · web app' : IS_LOCAL ? ' · device edition' : IS_CLOUD ? ' · live sync' : ''} · Private, single-user</p>
   </div>`;
 }
 

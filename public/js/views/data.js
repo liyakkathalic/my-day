@@ -1,6 +1,6 @@
 import { html, useState } from '../../vendor/preact-htm.js';
 import { useStore, Card, Field, toast, syncLabel, askConfirm } from '../ui.js';
-import { IS_ARTIFACT, IS_LOCAL } from '../config.js';
+import { IS_ARTIFACT, IS_LOCAL, IS_CLOUD } from '../config.js';
 import { SubHeader } from './more.js';
 import * as store from '../store.js';
 import { api } from '../api.js';
@@ -88,10 +88,19 @@ export function SyncView() {
   const [pw, setPw] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [code, setCode] = useState('');
+  const [pw2, setPw2] = useState('');
   const signIn = async (e) => {
     e.preventDefault();
     setBusy(true); setErr('');
-    try { await store.signIn(pw); setPw(''); toast('Signed in. Your data is syncing.'); repairSubscription(); } catch (x) { setErr(x.message); }
+    try { await store.signIn(pw); setPw(''); toast('Signed in. Your data is syncing.'); if (!IS_CLOUD) repairSubscription(); } catch (x) { setErr(x.message); }
+    setBusy(false);
+  };
+  const setup = async (e) => {
+    e.preventDefault();
+    if (pw !== pw2) { setErr('The two passwords are not the same.'); return; }
+    setBusy(true); setErr('');
+    try { await store.setupPassword(code, pw); setPw(''); setPw2(''); setCode(''); toast('Password saved. You are signed in and your data is syncing.'); } catch (x) { setErr(x.message); }
     setBusy(false);
   };
   const l = syncLabel(s);
@@ -110,8 +119,18 @@ export function SyncView() {
       ${!s.online && s.pending > 0 && html`<p class="hint">Your changes are saved on this device and will sync when you are back online.</p>`}
     <//>
     ${s.signedIn ? html`<${Card} title="Account">
-        <p>You are signed in. Your data is backed up to your server.</p>
+        <p>${IS_CLOUD ? 'You are signed in. Your data is saved in your own Cloudflare database and stays in step on every signed-in device, usually within a few seconds.' : 'You are signed in. Your data is backed up to your server.'}</p>
         <button class="btn quiet" onClick=${async () => { if (s.pending && !(await askConfirm(`${s.pending} changes have not synced yet. They stay on this device, but will not reach the server until you sign in again. Sign out anyway?`, { ok: 'Sign out' }))) return; await store.signOut(); toast('Signed out'); }}>Sign out</button>
+      <//>`
+      : IS_CLOUD && !s.passwordSet ? html`<${Card} title="Create your password">
+        <p>First time here: choose the password you will use on your phone and computer. You need the one-time setup code you were given.</p>
+        <form class="stack" onSubmit=${setup}>
+          <${Field} label="Setup code" id="su-code"><input id="su-code" autocomplete="one-time-code" autocapitalize="characters" value=${code} onInput=${(e) => setCode(e.currentTarget.value)} placeholder="XXXX-XXXX-XXXX" /><//>
+          <${Field} label="New password" id="su-pw" hint="At least 10 characters."><input id="su-pw" type="password" autocomplete="new-password" value=${pw} onInput=${(e) => setPw(e.currentTarget.value)} /><//>
+          <${Field} label="Type it again" id="su-pw2"><input id="su-pw2" type="password" autocomplete="new-password" value=${pw2} onInput=${(e) => setPw2(e.currentTarget.value)} /><//>
+          ${err && html`<p class="status-msg" role="alert">${err}</p>`}
+          <button class="btn" type="submit" disabled=${busy || !code.trim() || pw.length < 10 || !pw2 || !s.online}>Save password and sign in</button>
+        </form>
       <//>`
       : html`<${Card} title="Sign in">
         <p>Sign in to back up your data and use it on more than one device. Until then, everything is saved on this device only.</p>

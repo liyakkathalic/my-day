@@ -3,7 +3,7 @@ import { useStore, openSheet, Field, Segmented, toast, Card, EmptyState, askConf
 import { SubHeader } from './more.js';
 import * as M from '../model.js';
 import * as store from '../store.js';
-import { IS_ARTIFACT, NO_PUSH } from '../config.js';
+import { IS_ARTIFACT, IS_CLOUD, NO_PUSH } from '../config.js';
 import { pushSupport, enablePush, disablePush, serverStatus, sendTest } from '../push-client.js';
 import { nextReminders, inQuietHours } from '../core/reminders.js';
 import { fmtTime, weekdayName, zonedParts, relDate, isValidTime, isValidDate } from '../core/time.js';
@@ -97,7 +97,9 @@ function ReminderEditor({ reminder, close }) {
 function WebAppNote() {
   return html`<${Card} title="Reminders in the web app">
     <p>While My Day is open, a reminder appears at the bottom of the screen when it is due.</p>
-    <p class="note">This version cannot send phone notifications when it is closed${IS_ARTIFACT ? '' : ', because it has no server'}. For real iPhone reminders with the app closed, use the self-hosted version (it needs a small server — see the project’s DEPLOY guide). Your reminder settings below carry over.</p>
+    ${IS_CLOUD
+      ? html`<p class="note">Phone notifications while the app is closed are not switched on in this version yet. Your reminder settings below carry over when they are.</p>`
+      : html`<p class="note">This version cannot send phone notifications when it is closed${IS_ARTIFACT ? '' : ', because it has no server'}. For real iPhone reminders with the app closed, use the self-hosted version (it needs a small server — see the project’s DEPLOY guide). Your reminder settings below carry over.</p>`}
   <//>`;
 }
 

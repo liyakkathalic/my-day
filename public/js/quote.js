@@ -1,11 +1,12 @@
 // Today's quote: fetched once a day from quote.json (refreshed every morning by
 // the GitHub Pages workflow), remembered on the device, and replaced by a
 // built-in quote when it can't be reached.
-import { IS_LOCAL } from './config.js';
+import { IS_ARTIFACT } from './config.js';
 import { builtInQuote } from './core/quotes.js';
 
 const KEY = 'myday-quote';
-const URL_ = IS_LOCAL ? 'quote.json' : 'https://liyakkathalic.github.io/my-day/quote.json';
+// The Pages and Cloudflare editions serve quote.json themselves; the claude.ai one can only try the Pages copy.
+const URL_ = IS_ARTIFACT ? 'https://liyakkathalic.github.io/my-day/quote.json' : 'quote.json';
 const valid = (x) => x && typeof x.q === 'string' && x.q.trim() && x.q.length < 400 && typeof x.a === 'string';
 
 export function cachedQuote(today) {

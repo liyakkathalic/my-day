@@ -5,3 +5,5 @@ data/
 *.sqlite-*
 dist-artifact/
 dist-pages/
+dist-cloud/
+.wrangler/

@@ -4,7 +4,7 @@ import { SubHeader } from './more.js';
 import * as M from '../model.js';
 import { isStandalone, isIOS } from '../push-client.js';
 import { isValidTime } from '../core/time.js';
-import { IS_ARTIFACT, IS_LOCAL } from '../config.js';
+import { IS_ARTIFACT, IS_LOCAL, NO_PUSH } from '../config.js';
 
 const ZONES = (() => {
   try { return Intl.supportedValuesOf('timeZone'); } catch { return ['Asia/Kolkata', 'Asia/Dubai', 'Asia/Singapore', 'Europe/London', 'America/New_York', 'UTC']; }
@@ -54,7 +54,7 @@ export function InstallView() {
   const standalone = isStandalone();
   return html`<div class="screen">
     <${SubHeader} title="Add to Home Screen" />
-    ${standalone ? html`<${Card}><p><strong>You are using the Home Screen app.</strong>${IS_LOCAL ? '' : html` You can now <a href="#more/notifications">turn on notifications</a>.`}</p><//>` : ''}
+    ${standalone ? html`<${Card}><p><strong>You are using the Home Screen app.</strong>${NO_PUSH ? '' : html` You can now <a href="#more/notifications">turn on notifications</a>.`}</p><//>` : ''}
     <${Card} title="On iPhone (iOS 16.4 or later)">
       <ol class="steps">
         <li>Open My Day in <strong>Safari</strong> (not inside another app’s browser).</li>
@@ -64,9 +64,9 @@ export function InstallView() {
         ${IS_LOCAL
           ? html`<li>Use My Day from the Home Screen icon from now on. It keeps its own storage, separate from Safari, and works offline.</li>`
           : html`<li>Sign in again inside the Home Screen app — it keeps its own storage, separate from Safari.</li>
-        <li>Go to More → Reminders and notifications → <strong>Enable Notifications</strong>, then send a test.</li>`}
+        ${!NO_PUSH && html`<li>Go to More → Reminders and notifications → <strong>Enable Notifications</strong>, then send a test.</li>`}`}
       </ol>
-      ${isIOS() && !standalone && html`<p class="note">You are viewing this in the browser. ${IS_LOCAL ? 'Add it to the Home Screen so it works offline and keeps its data in one place.' : 'Notifications on iPhone need the Home Screen app.'}</p>`}
+      ${isIOS() && !standalone && html`<p class="note">You are viewing this in the browser. ${IS_LOCAL ? 'Add it to the Home Screen so it works offline and keeps its data in one place.' : NO_PUSH ? 'Add it to the Home Screen so it opens like an app and works offline.' : 'Notifications on iPhone need the Home Screen app.'}</p>`}
     <//>
     <${Card} title="On a computer or Android">
       <p>In Chrome or Edge, use the install icon in the address bar, or the menu → Install My Day. On Android, use the menu → Add to Home screen.</p>

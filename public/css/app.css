@@ -131,6 +131,7 @@ main { min-height: 100dvh; }
   min-width: 0;
 }
 .card.attn { border-color: var(--attn); background: var(--attn-weak); }
+.signin-nudge { text-decoration: none; color: inherit; gap: 2px; }
 .card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 
 /* ---------- now card ---------- */

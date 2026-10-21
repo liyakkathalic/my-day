@@ -13,16 +13,30 @@ offline.
 
 ## Two editions
 
-| | GitHub Pages | Web app (claude.ai) | Self-hosted |
-|---|---|---|---|
-| Address | `https://<user>.github.io/my-day/` | Private claude.ai link | Your own domain |
-| Data | This device only (+ backup files) | Your claude.ai account (private) + device | Your server + device + daily backups |
-| Same data on phone and computer | No (move with backup files) | Yes | Yes |
-| Phone notifications with app closed | No (shown while open) | No (shown while open) | Yes (Web Push) |
-| Works offline / Home Screen install | Yes | Only while open | Yes |
-| Build | `npm run build:pages` → `dist-pages/` (automatic on push, see `.github/workflows/pages.yml`) | `npm run build:web` | `npm start` |
+| | Cloudflare (live sync) | GitHub Pages | Web app (claude.ai) | Self-hosted |
+|---|---|---|---|---|
+| Address | `https://my-day.<account>.workers.dev` | `https://<user>.github.io/my-day/` | Private claude.ai link | Your own domain |
+| Data | Cloudflare D1 `my-day` + device | This device only (+ backup files) | Your claude.ai account (private) + device | Your server + device + daily backups |
+| Same data on phone and computer | Yes, live (checks every 4 s while open) | No (move with backup files) | Yes | Yes |
+| Phone notifications with app closed | Not yet (shown while open) | No (shown while open) | No (shown while open) | Yes (Web Push) |
+| Works offline / Home Screen install | Yes | Yes | Only while open | Yes |
+| Build | `npm run build:cloud` → `dist-cloud/`, deployed by Cloudflare Workers Builds on push | `npm run build:pages` → `dist-pages/` (automatic on push, see `.github/workflows/pages.yml`) | `npm run build:web` | `npm start` |
 
-All three come from the same code; `MYDAY_MODE` (see `public/js/config.js`) switches the storage.
+All four come from the same code; `MYDAY_MODE` (see `public/js/config.js`) switches the storage.
+
+### Cloudflare edition (live sync)
+
+Same pattern as Sitz Ergo Job Desk: a Cloudflare Worker (`worker/index.js`) serves the app
+from `dist-cloud/` and the sync API from D1 (`worker/schema.sql`, database `my-day`, id in
+`wrangler.toml`). Devices check for changes every 4 seconds while open.
+
+* Deploy: Cloudflare → Workers & Pages → Create → Import a repository → `my-day`. The deploy
+  command `npx wrangler deploy` runs `npm run build:cloud` first (`[build]` in wrangler.toml).
+* First sign-in: More → Sign-in and sync → Create your password, with the one-time setup code
+  stored (hashed) in the `meta` table as `setup_code`. To issue a new code, store the SHA-256 of
+  the upper-case code there and delete the `password` row.
+* Local: `npm run dev:cloud` (local D1: `npx wrangler d1 execute my-day --local --file worker/schema.sql`).
+* Tests: `npm run build:cloud && node test/cloud.mjs` (real Worker under `wrangler dev`, two browsers).
 
 ### Publishing on GitHub Pages
 
@@ -51,6 +65,7 @@ npm test            # unit + server tests: time zone, schedule, recurrence, sync
 npm run test:e2e    # simulated browser checks in headless Chromium at iPhone size
 npm run build:web && node test/web-app.mjs   # web-app edition with a stand-in claude.ai runtime
 npm run build:pages && node test/pages.mjs   # GitHub Pages edition served under /my-day/
+npm run build:cloud && node test/cloud.mjs   # Cloudflare edition: local Worker + D1, two devices
 ```
 
 The browser checks are **simulations** (Chromium, not Safari, no real keyboard,

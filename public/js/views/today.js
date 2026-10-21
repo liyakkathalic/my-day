@@ -7,6 +7,8 @@ import { fmtTime, fmtDate, addDays, relDate } from '../core/time.js';
 import { MONEY_TYPES } from '../core/defaults.js';
 import { builtInQuote } from '../core/quotes.js';
 import { cachedQuote, loadQuote } from '../quote.js';
+import { IS_CLOUD } from '../config.js';
+import { syncState } from '../store.js';
 
 function QuoteBanner({ today }) {
   const [quote, setQuote] = useState(() => cachedQuote(today) || builtInQuote(today));
@@ -129,6 +131,7 @@ export function TodayView() {
       <div><p class="eyebrow">Today</p><h1>${fmtDate(today, { long: true })}</h1></div>
       <${SyncPill} />
     </header>
+    ${IS_CLOUD && !syncState().signedIn && html`<a class="card attn signin-nudge" href="#more/sync"><strong>${syncState().passwordSet ? 'Sign in to sync' : 'Set up your password'}</strong><span>Until then, changes stay on this device only.</span></a>`}
     <${NowCard} now=${now} />
     <${Card} title="Today’s three priorities">
       <ul class="task-list prio">

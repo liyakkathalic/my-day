@@ -1,0 +1,18 @@
+# Cloudflare edition of My Day: a Worker serving the app (dist-cloud/) and the
+# sync API on D1. Deploys on every push to main through Cloudflare Workers Builds.
+name = "my-day"
+main = "worker/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[build]
+command = "npm run build:cloud"
+
+[assets]
+directory = "./dist-cloud"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "my-day"
+database_id = "809434b3-c112-400a-b1e4-d62140e8644f"

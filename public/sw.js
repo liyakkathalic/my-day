@@ -24,7 +24,8 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/')) return;
   if (event.request.mode === 'navigate') {
-    const shell = new URL('index.html', self.registration.scope).href;
+    // './' where the build lists it (Pages, Cloudflare: their hosts redirect /index.html), else index.html.
+    const shell = new URL(ASSETS.includes('./') ? './' : 'index.html', self.registration.scope).href;
     event.respondWith(caches.match(shell).then((r) => r || fetch(event.request)));
     return;
   }

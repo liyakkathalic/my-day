@@ -5,7 +5,7 @@
 //   from another device is never silently overwritten — it becomes a conflict
 //   that I choose how to resolve.
 import { api } from './api.js';
-import { IS_ARTIFACT, IS_LOCAL } from './config.js';
+import { IS_ARTIFACT, IS_LOCAL, IS_CLOUD } from './config.js';
 import * as cloud from './cloud.js';
 
 const DB_NAME = 'myday';
@@ -15,7 +15,7 @@ const outbox = new Map();  // key -> { baseRev, gen, force }
 const conflicts = new Map(); // key -> { server }
 const meta = { lastSeq: 0, signedIn: false, lastSyncAt: 0, lastError: '', localOnlySince: 0 };
 const listeners = new Set();
-export const status = { syncing: false, online: navigator.onLine, ready: false, cloudChecked: !IS_ARTIFACT };
+export const status = { syncing: false, online: navigator.onLine, ready: false, cloudChecked: !IS_ARTIFACT, passwordSet: true };
 const echo = new Map(); // key -> revision of my own in-flight cloud write
 let cloudFirst;
 /** Web-app edition: resolves true once the first cloud copy has arrived (false if unavailable). */
@@ -93,13 +93,15 @@ export async function init() {
   window.addEventListener('online', () => { status.online = true; emit(); sync(); });
   window.addEventListener('offline', () => { status.online = false; emit(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
-  setInterval(() => { if (!document.hidden) sync(); }, 60_000);
+  // The Cloudflare edition checks for changes from other devices every 4 seconds while open.
+  setInterval(() => { if (!document.hidden) sync(); }, IS_CLOUD ? 4000 : 60_000);
   if (IS_ARTIFACT) { meta.signedIn = false; connectCloud(); }
   else if (IS_LOCAL) { meta.signedIn = false; status.cloudChecked = true; }
   else {
     try {
       const s = await api('/api/session');
       meta.signedIn = s.signedIn;
+      status.passwordSet = s.passwordSet !== false;
     } catch { /* offline: keep the last known sign-in state */ }
   }
   status.ready = true;
@@ -126,7 +128,7 @@ export const hasRecord = (col, id) => records.has(k(col, id));
 
 // ---- writing ----
 let syncTimer = null;
-function scheduleSync() { clearTimeout(syncTimer); syncTimer = setTimeout(sync, 1200); }
+function scheduleSync() { clearTimeout(syncTimer); syncTimer = setTimeout(sync, IS_CLOUD ? 400 : 1200); }
 
 /** Save a record. `gen` marks auto-generated data (defaults, routine days) that may yield to the server copy. */
 export function put(col, id, data, { gen = false, force = false } = {}) {
@@ -293,8 +295,19 @@ export function keepTheirs(key) {
 }
 
 // ---- account ----
+/** First run of the Cloudflare edition: choose the password with the one-time setup code. */
+export async function setupPassword(code, password) {
+  await api('/api/setup', { method: 'POST', body: { code, password } });
+  status.passwordSet = true;
+  return afterSignIn();
+}
+
 export async function signIn(password) {
   await api('/api/login', { method: 'POST', body: { password } });
+  return afterSignIn();
+}
+
+async function afterSignIn() {
   meta.signedIn = true;
   // Pull everything again so this device sees the whole cloud copy.
   meta.lastSeq = 0;
@@ -302,6 +315,7 @@ export async function signIn(password) {
   emit();
   await sync();
 }
+
 export async function signOut() {
   try { await api('/api/logout', { method: 'POST' }); } catch { /* offline */ }
   meta.signedIn = false;
@@ -313,6 +327,7 @@ export function syncState() {
   return {
     signedIn: meta.signedIn,
     deviceOnly: IS_LOCAL,
+    passwordSet: status.passwordSet,
     cloudChecked: status.cloudChecked,
     online: status.online,
     syncing: status.syncing,
