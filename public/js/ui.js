@@ -189,12 +189,38 @@ export function taskMeta(t, today) {
   return bits;
 }
 
+const CHEERS = ['Done. Nicely handled.', 'One less thing. Well done.', 'Lovely, that’s done.', 'Done. Keep the calm going.', 'Ticked off. Good work.'];
+const SPARK_COLORS = ['var(--accent)', 'var(--attn)', 'var(--sky-1)', 'var(--sky-2)'];
+
+/** Small sparkle burst from an element; skipped when the person prefers reduced motion. */
+export function celebrate(el) {
+  if (!el?.getBoundingClientRect || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const r = el.getBoundingClientRect();
+  const box = document.createElement('div');
+  box.className = 'burst';
+  box.setAttribute('aria-hidden', 'true');
+  box.style.left = `${r.left + r.width / 2}px`;
+  box.style.top = `${r.top + r.height / 2}px`;
+  for (let i = 0; i < 10; i++) {
+    const s = document.createElement('i');
+    const a = (i / 10) * Math.PI * 2 + Math.random() * 0.4;
+    const d = 26 + Math.random() * 20;
+    s.style.setProperty('--x', `${Math.cos(a) * d}px`);
+    s.style.setProperty('--y', `${Math.sin(a) * d}px`);
+    s.style.background = SPARK_COLORS[i % SPARK_COLORS.length];
+    box.appendChild(s);
+  }
+  document.body.appendChild(box);
+  setTimeout(() => box.remove(), 800);
+}
+
 export function TaskRow({ task: t, today, actions = false }) {
   const done = t.status === 'done';
-  const toggle = () => {
+  const toggle = (e) => {
     if (done) { M.reopenTask(t); return; }
+    celebrate(e?.currentTarget);
     M.completeTask(t);
-    toast('Marked as done', { label: 'Undo', run: () => M.saveTask(t) });
+    toast(CHEERS[Math.floor(Math.random() * CHEERS.length)], { label: 'Undo', run: () => M.saveTask(t) });
   };
   return html`<li class=${'task' + (done ? ' done' : '')}>
     <div class="task-main">

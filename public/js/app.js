@@ -17,6 +17,7 @@ import { MoneyView } from './views/money.js';
 import { repairSubscription } from './push-client.js';
 import { IS_ARTIFACT, IS_LOCAL, NO_PUSH } from './config.js';
 import { dueReminders, reminderText } from './core/reminders.js';
+import { nowMinutes } from './core/time.js';
 
 const MORE = {
   schedule: ScheduleView, themes: ThemesView, routines: RoutinesView, notifications: NotificationsView,
@@ -70,11 +71,25 @@ function App() {
   else if (MORE[page]) { const V = MORE[page]; view = html`<${V} sub=${sub} />`; }
   else view = html`<${MoreView} />`;
   return html`
+    <div class="sky" aria-hidden="true"><i></i><i></i><i></i></div>
     <${ConflictBanner} hidden=${page === 'sync'} />
     <main id="main">${view}</main>
     <${BottomNav} tab=${tab} />
     <${SheetHost} />
     <${ToastHost} />`;
+}
+
+// Background colours follow the time of day in the planning time zone.
+function daypart(min) {
+  if (min >= 300 && min < 540) return 'dawn';
+  if (min >= 540 && min < 960) return 'day';
+  if (min >= 960 && min < 1170) return 'evening';
+  return 'night';
+}
+function trackDaypart() {
+  const set = () => { document.documentElement.dataset.daypart = daypart(nowMinutes(M.tz())); };
+  set();
+  setInterval(set, 60_000);
 }
 
 // Keep sheets and buttons above the on-screen keyboard (iOS does not resize the layout viewport).
@@ -140,6 +155,7 @@ async function boot() {
   M.ensureDefaults();
   M.materializeRoutines();
   trackViewport();
+  trackDaypart();
   root.textContent = '';
   render(html`<${App} />`, root);
   registerServiceWorker();

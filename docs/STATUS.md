@@ -29,8 +29,16 @@ Legend: **Tested** = covered by automated tests that passed in this build enviro
 | Live updates between two devices (4-second check while open) | Simulated: a new task arrived on the other device in about 6 s |
 | Password sign-in, one-time setup code, lockout after failed attempts | Simulated |
 | D1 database `my-day` created in the Cloudflare account | Done |
-| Deployed at workers.dev | **Waiting for the repository to be connected in Cloudflare** |
+| Deployed at https://my-day.liyakathalicm.workers.dev (auto-deploys on push to main) | Live; password set |
 | Push notifications with the app closed | Not built yet for this edition |
+
+## Look and feel
+
+| Feature | State |
+|---|---|
+| Time-of-day background (dawn, day, evening, night) with slowly drifting colour, light and dark | Visually checked in Chromium at phone size |
+| Gentle motion: cards float in, check pop and sparkle when a task is done, block progress bar | Visually checked in Chromium |
+| All motion off when the phone's "Reduce motion" is on | CSS rule in place; not checked on a real iPhone |
 
 ## Daily quote (Today screen)
 

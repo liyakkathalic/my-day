@@ -3,7 +3,7 @@ import { useStore, useClock, Card, TaskList, TaskRow, EmptyState, openSheet, Qui
 import * as M from '../model.js';
 import { currentAndNext, minutesLeft, adminThemeFor } from '../core/schedule.js';
 import { tasksForList, priorities, upcomingDeadlines, deadlineLabel, followUpDue } from '../core/tasks.js';
-import { fmtTime, fmtDate, addDays, relDate } from '../core/time.js';
+import { fmtTime, fmtDate, addDays, relDate, toMinutes, nowMinutes } from '../core/time.js';
 import { MONEY_TYPES } from '../core/defaults.js';
 import { builtInQuote } from '../core/quotes.js';
 import { cachedQuote, loadQuote } from '../quote.js';
@@ -14,9 +14,17 @@ function QuoteBanner({ today }) {
   const [quote, setQuote] = useState(() => cachedQuote(today) || builtInQuote(today));
   useEffect(() => { let live = true; loadQuote(today).then((x) => live && setQuote(x)); return () => { live = false; }; }, [today]);
   return html`<figure class="quote" aria-label="Today’s quote">
+    <span class="quote-mark" aria-hidden="true">“</span>
     <blockquote>${quote.q}</blockquote>
     <figcaption>— ${quote.a}${quote.source === 'zenquotes' && html` · <a href="https://zenquotes.io/" target="_blank" rel="noopener">ZenQuotes</a>`}</figcaption>
   </figure>`;
+}
+
+function greeting(min) {
+  if (min >= 300 && min < 720) return 'Good morning';
+  if (min >= 720 && min < 1020) return 'Good afternoon';
+  if (min >= 1020 && min < 1320) return 'Good evening';
+  return 'Rest well';
 }
 
 function duration(min) {
@@ -30,12 +38,17 @@ function NowCard({ now }) {
   const { current, next, minutes } = currentAndNext(sched.blocks, new Date(now), M.tz());
   const theme = (b) => (b?.link === 'admin' ? adminThemeFor(sched, b.date) : '');
   const isSleep = current?.kind === 'sleep';
+  const left = minutesLeft(current, minutes);
+  let total = current?.end ? toMinutes(current.end) - toMinutes(current.start) : 0;
+  if (total <= 0) total += 1440;
+  const pct = current?.end && left != null ? Math.min(100, Math.max(0, Math.round((1 - left / total) * 100))) : null;
   return html`<section class=${'card now' + (isSleep ? ' sleep' : '')} aria-label="Current time block">
     <p class="eyebrow">Now · ${fmtTime(String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0'))}</p>
     ${current ? html`
       <h2 class="now-title">${current.title}</h2>
       ${theme(current) && html`<p class="theme">Today’s theme: ${theme(current)}</p>`}
-      <p class="muted">${fmtTime(current.start)}–${fmtTime(current.end)} · ${duration(minutesLeft(current, minutes))} left</p>
+      <p class="muted">${fmtTime(current.start)}–${fmtTime(current.end)} · ${duration(left)} left</p>
+      ${pct != null && html`<div class="progress" role="progressbar" aria-label="Time block progress" aria-valuenow=${pct} aria-valuemin="0" aria-valuemax="100"><span style=${`width:${pct}%`}></span></div>`}
       ${isSleep && html`<p class="calm">Rest. Everything else can wait until morning.</p>`}
       ${current.link === 'office' && html`<a class="btn secondary" href="#more/office">Open office checklist</a>`}
     ` : html`<h2 class="now-title">Open time</h2><p class="muted">Nothing scheduled right now.</p>`}
@@ -128,7 +141,7 @@ export function TodayView() {
   return html`<div class="screen">
     <${QuoteBanner} today=${today} />
     <header class="top">
-      <div><p class="eyebrow">Today</p><h1>${fmtDate(today, { long: true })}</h1></div>
+      <div><p class="eyebrow">${greeting(nowMinutes(M.tz(), new Date(now)))} · Today</p><h1 class="hero">${fmtDate(today, { long: true })}</h1></div>
       <${SyncPill} />
     </header>
     ${IS_CLOUD && !syncState().signedIn && html`<a class="card attn signin-nudge" href="#more/sync"><strong>${syncState().passwordSet ? 'Sign in to sync' : 'Set up your password'}</strong><span>Until then, changes stay on this device only.</span></a>`}
