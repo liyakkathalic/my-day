@@ -108,6 +108,7 @@ main { min-height: 100dvh; }
 .status-msg { background: var(--accent-weak); padding: 10px 12px; border-radius: 10px; }
 .empty { color: var(--muted); padding: 6px 0; }
 .notes { white-space: pre-wrap; overflow-wrap: anywhere; }
+.select { user-select: all; -webkit-user-select: all; overflow-wrap: anywhere; }
 
 .card {
   background: var(--surface);

@@ -24,10 +24,11 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/')) return;
   if (event.request.mode === 'navigate') {
-    event.respondWith(caches.match('/index.html').then((r) => r || fetch(event.request)));
+    const shell = new URL('index.html', self.registration.scope).href;
+    event.respondWith(caches.match(shell).then((r) => r || fetch(event.request)));
     return;
   }
-  event.respondWith(caches.match(url.pathname).then((r) => r || fetch(event.request)));
+  event.respondWith(caches.match(event.request, { ignoreSearch: true }).then((r) => r || fetch(event.request)));
 });
 
 // Every push must show a notification (iOS revokes permission otherwise).
@@ -37,8 +38,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(p.title || 'My Day', {
     body: p.body || 'You have a reminder in My Day.',
     tag: p.tag || 'myday',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    icon: new URL('icons/icon-192.png', self.registration.scope).href,
+    badge: new URL('icons/icon-192.png', self.registration.scope).href,
     data: { url: p.url || '/#today' },
   }));
 });

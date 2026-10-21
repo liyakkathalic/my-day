@@ -1,7 +1,7 @@
 import { html } from '../../vendor/preact-htm.js';
 import { useStore, SyncPill, syncLabel } from '../ui.js';
 import * as store from '../store.js';
-import { IS_ARTIFACT } from '../config.js';
+import { IS_ARTIFACT, IS_LOCAL } from '../config.js';
 
 const ITEMS = [
   ['Plan', [
@@ -18,7 +18,7 @@ const ITEMS = [
     ['settings', 'Settings', 'Time zone and quiet hours'],
   ]],
   ['Your data', [
-    ['sync', IS_ARTIFACT ? 'Cloud copy' : 'Sign-in and sync', null],
+    ['sync', IS_LOCAL ? 'Where my data is saved' : IS_ARTIFACT ? 'Cloud copy' : 'Sign-in and sync', null],
     ['data', 'Backup and restore', 'Export a file or restore one'],
   ]],
 ];
@@ -34,7 +34,7 @@ export function MoreView() {
         <span class="menu-title">${title}</span><span class="menu-desc">${desc || s.text}</span><span class="chev" aria-hidden="true">›</span>
       </a></li>`)}</ul>
     </section>`)}
-    <p class="hint center">My Day · version 0.1${IS_ARTIFACT ? ' · web app' : ''} · Private, single-user</p>
+    <p class="hint center">My Day · version 0.1${IS_ARTIFACT ? ' · web app' : IS_LOCAL ? ' · device edition' : ''} · Private, single-user</p>
   </div>`;
 }
 

@@ -4,3 +4,7 @@
 /* global MYDAY_MODE */
 export const MODE = typeof MYDAY_MODE !== 'undefined' ? MYDAY_MODE : 'server';
 export const IS_ARTIFACT = MODE === 'artifact';
+// GitHub Pages edition: static files only, data stays on this device.
+export const IS_LOCAL = MODE === 'local';
+/** Editions without a server that can send push notifications. */
+export const NO_PUSH = IS_ARTIFACT || IS_LOCAL;

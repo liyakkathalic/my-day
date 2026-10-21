@@ -15,7 +15,7 @@ import { OfficeView } from './views/office.js';
 import { ContentView } from './views/content.js';
 import { MoneyView } from './views/money.js';
 import { repairSubscription } from './push-client.js';
-import { IS_ARTIFACT } from './config.js';
+import { IS_ARTIFACT, IS_LOCAL, NO_PUSH } from './config.js';
 import { dueReminders, reminderText } from './core/reminders.js';
 
 const MORE = {
@@ -108,7 +108,7 @@ function inPageReminders() {
 
 function registerServiceWorker() {
   if (IS_ARTIFACT || !('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.register('/sw.js').then((reg) => {
+  navigator.serviceWorker.register('sw.js').then((reg) => {
     reg.addEventListener('updatefound', () => {
       const w = reg.installing;
       w?.addEventListener('statechange', () => {
@@ -143,7 +143,7 @@ async function boot() {
   root.textContent = '';
   render(html`<${App} />`, root);
   registerServiceWorker();
-  if (IS_ARTIFACT) inPageReminders();
+  if (NO_PUSH) inPageReminders();
   else if (store.syncState().signedIn) repairSubscription();
   // New day while the app stays open: create today's routine tasks.
   let day = M.today();

@@ -1,6 +1,6 @@
 import { html, useState } from '../../vendor/preact-htm.js';
 import { useStore, Card, Field, toast, syncLabel, askConfirm } from '../ui.js';
-import { IS_ARTIFACT } from '../config.js';
+import { IS_ARTIFACT, IS_LOCAL } from '../config.js';
 import { SubHeader } from './more.js';
 import * as store from '../store.js';
 import { api } from '../api.js';
@@ -58,8 +58,31 @@ function CloudView() {
   </div>`;
 }
 
+// The claude.ai web-app link, offered on the device-only edition for syncing between devices.
+const WEB_APP_URL = 'https://claude.ai/artifact/MAqGTFf1E8dhmLBsBwZH9g';
+
+function DeviceOnlyView() {
+  return html`<div class="screen">
+    <${SubHeader} title="Where my data is saved" />
+    <${Card} title="On this device">
+      <p>This edition keeps everything in this browser on this device. Nothing is sent to any server, and it works offline once added to the Home Screen.</p>
+      <p class="note">On iPhone, Safari and the Home Screen app keep separate storage. Pick one and use it every day.</p>
+    <//>
+    <${Card} title="Keep a backup">
+      <p>Browser storage can be cleared (for example by removing website data in Settings). Save a backup file every week and keep it in iCloud Drive or Files.</p>
+      <a class="btn" href="#more/data">Backup and restore</a>
+    <//>
+    <${Card} title="Need the same data on phone and computer?">
+      <p>Use the claude.ai version of My Day. It saves to your claude.ai account. Move your data across with a backup file: save it here, then restore it there.</p>
+      <p class="hint">Address (open while signed in to claude.ai): <span class="select">${WEB_APP_URL}</span></p>
+      <a class="btn secondary" href=${WEB_APP_URL} target="_blank" rel="noopener noreferrer">Open the claude.ai version</a>
+    <//>
+  </div>`;
+}
+
 export function SyncView() {
   if (IS_ARTIFACT) return html`<${CloudView} />`;
+  if (IS_LOCAL) return html`<${DeviceOnlyView} />`;
   useStore();
   const s = store.syncState();
   const [pw, setPw] = useState('');
@@ -173,7 +196,7 @@ export function DataView() {
     <${Card} title="Where your data is kept">
       <ul class="plain">
         <li>On this device (works offline).</li>
-        <li>${IS_ARTIFACT
+        <li>${IS_LOCAL ? 'Only on this device — nothing is sent to a server.' : IS_ARTIFACT
           ? (s.signedIn ? 'In your claude.ai account (private to you), saved automatically.' : 'Not in the cloud right now — it will be saved when your account is reachable.')
           : (s.signedIn ? 'On your server, synced automatically. The server also keeps a daily copy for 14 days.' : 'Not on a server yet — sign in to add a cloud copy.')}</li>
         <li>In backup files you export (recommended once a week; keep them in iCloud Drive or Files).</li>

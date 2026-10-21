@@ -5,7 +5,7 @@
 //   from another device is never silently overwritten — it becomes a conflict
 //   that I choose how to resolve.
 import { api } from './api.js';
-import { IS_ARTIFACT } from './config.js';
+import { IS_ARTIFACT, IS_LOCAL } from './config.js';
 import * as cloud from './cloud.js';
 
 const DB_NAME = 'myday';
@@ -95,6 +95,7 @@ export async function init() {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
   setInterval(() => { if (!document.hidden) sync(); }, 60_000);
   if (IS_ARTIFACT) { meta.signedIn = false; connectCloud(); }
+  else if (IS_LOCAL) { meta.signedIn = false; status.cloudChecked = true; }
   else {
     try {
       const s = await api('/api/session');
@@ -311,6 +312,7 @@ export async function signOut() {
 export function syncState() {
   return {
     signedIn: meta.signedIn,
+    deviceOnly: IS_LOCAL,
     cloudChecked: status.cloudChecked,
     online: status.online,
     syncing: status.syncing,

@@ -383,6 +383,7 @@ export function TaskEditor({ task, close, defaults = {} }) {
 }
 
 export function syncLabel(s) {
+  if (s.deviceOnly) return { text: 'Saved on this device', tone: 'ok' };
   if (!s.signedIn) return { text: s.cloudChecked ? 'On this device only' : 'Connecting…', tone: 'neutral' };
   if (s.conflicts) return { text: `${s.conflicts} to review`, tone: 'attn' };
   if (!s.online) return { text: s.pending ? `Offline · ${s.pending} not synced` : 'Offline', tone: 'neutral' };

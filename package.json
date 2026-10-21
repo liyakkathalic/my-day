@@ -10,7 +10,8 @@
     "test": "node --test test/*.test.js",
     "test:e2e": "node test/e2e.mjs",
     "icons": "node scripts/make-icons.mjs",
-    "build:web": "node scripts/build-artifact.mjs"
+    "build:web": "node scripts/build-artifact.mjs",
+    "build:pages": "node scripts/build-pages.mjs"
   },
   "dependencies": {
     "htm": "^3.1.1",

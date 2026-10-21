@@ -13,15 +13,22 @@ offline.
 
 ## Two editions
 
-| | Web app (claude.ai) | Self-hosted |
-|---|---|---|
-| Open it | The private claude.ai link — nothing to install or host | Your own server with HTTPS |
-| Data | Your claude.ai account (private area) + this device | Your server + this device + daily server backups |
-| Phone notifications with the app closed | **No** — reminders only appear while the page is open | Yes (Web Push) |
-| Works offline | Only while already open | Yes (service worker) |
-| Build | `npm run build:web` → `dist-artifact/my-day.html` | `npm start` |
+| | GitHub Pages | Web app (claude.ai) | Self-hosted |
+|---|---|---|---|
+| Address | `https://<user>.github.io/my-day/` | Private claude.ai link | Your own domain |
+| Data | This device only (+ backup files) | Your claude.ai account (private) + device | Your server + device + daily backups |
+| Same data on phone and computer | No (move with backup files) | Yes | Yes |
+| Phone notifications with app closed | No (shown while open) | No (shown while open) | Yes (Web Push) |
+| Works offline / Home Screen install | Yes | Only while open | Yes |
+| Build | `npm run build:pages` → `dist-pages/` (automatic on push, see `.github/workflows/pages.yml`) | `npm run build:web` | `npm start` |
 
-Both come from the same code; `MYDAY_MODE` (see `public/js/config.js`) switches the storage.
+All three come from the same code; `MYDAY_MODE` (see `public/js/config.js`) switches the storage.
+
+### Publishing on GitHub Pages
+
+1. Push this project to a public GitHub repository named `my-day`.
+2. Repository → Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+3. Every push to `main` runs the tests, builds `dist-pages/` and publishes it.
 
 ## Run it on your computer (5 minutes)
 
@@ -42,6 +49,7 @@ always use `npm start` behind HTTPS (see DEPLOY.md).
 npm test            # unit + server tests: time zone, schedule, recurrence, sync conflicts, reminder scheduler
 npm run test:e2e    # simulated browser checks in headless Chromium at iPhone size
 npm run build:web && node test/web-app.mjs   # web-app edition with a stand-in claude.ai runtime
+npm run build:pages && node test/pages.mjs   # GitHub Pages edition served under /my-day/
 ```
 
 The browser checks are **simulations** (Chromium, not Safari, no real keyboard,
