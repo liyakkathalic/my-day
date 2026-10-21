@@ -29,7 +29,7 @@ export function defaultBlocks() {
     b(WEEKDAYS, '13:00', '14:00', 'Lunch and rest', 'break'),
     b(WEEKDAYS, '14:00', '15:00', 'Clips, thumbnail and live outline', 'work'),
     b(WEEKDAYS, '15:00', '15:30', 'Editor coordination and output review', 'work'),
-    b(WEEKDAYS, '15:30', '16:15', 'Daily administration', 'admin', { link: 'admin' }),
+    b(WEEKDAYS, '15:30', '16:15', 'Daily administration theme', 'admin', { link: 'admin' }),
     b(WEEKDAYS, '16:15', '16:35', 'Office closing check', 'office', { link: 'office' }),
     b(WEEKDAYS, '16:35', '17:30', 'Buffer', 'buffer'),
     b(WEEKDAYS, '17:30', '19:15', 'Family, personal needs and dinner', 'family'),
