@@ -6,6 +6,9 @@ import { tasksForList, priorities, upcomingDeadlines, deadlineLabel, followUpDue
 import { fmtTime, fmtDate, addDays, relDate, toMinutes, nowMinutes } from '../core/time.js';
 import { MONEY_TYPES } from '../core/defaults.js';
 import { builtInQuote } from '../core/quotes.js';
+import { upcomingBills, category, dueLabel } from '../core/money.js';
+
+const inr0 = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
 import { cachedQuote, loadQuote } from '../quote.js';
 import { IS_CLOUD } from '../config.js';
 import { syncState } from '../store.js';
@@ -116,13 +119,14 @@ function Deadlines({ today }) {
   const tasks = upcomingDeadlines(M.tasks(), today).map((t) => ({ kind: 'task', id: t.id, title: t.title, date: t.dueDate, t }));
   const money = M.moneyEntries().filter((e) => (e.type === 'payable' || e.type === 'receivable') && e.status !== 'paid' && e.dueDate && e.dueDate <= addDays(today, 14))
     .map((e) => ({ kind: 'money', id: e.id, title: `${MONEY_TYPES[e.type]}: ${e.party || e.title || ''}`.trim(), date: e.dueDate }));
-  const all = [...tasks, ...money].sort((a, b) => a.date.localeCompare(b.date));
-  return html`<${Card} title="Upcoming deadlines">
+  const bills = upcomingBills(M.moneyEntries(), today, 14).map((b) => ({ kind: 'money', id: b.id, title: `${category(b.kind).icon} ${b.title} · ${inr0.format(Number(b.amount) || 0)}`, date: b.nextDue, label: dueLabel(b.nextDue, today) }));
+  const all = [...tasks, ...money, ...bills].sort((a, b) => a.date.localeCompare(b.date));
+  return html`<${Card} title="Deadlines and payments due">
     ${all.length ? html`<ul class="deadlines">${all.map((d) => html`<li key=${d.kind + d.id}>
       ${d.kind === 'task'
         ? html`<button class="dl" onClick=${() => openSheet('Edit', TaskEditor, { task: d.t })}><span class="dl-title">${d.title}</span><span class=${'dl-when' + (d.date < today ? ' passed' : '')}>${deadlineLabel(d.date, today)} · ${fmtDate(d.date)}</span></button>`
-        : html`<a class="dl" href="#more/money"><span class="dl-title">${d.title}</span><span class=${'dl-when' + (d.date < today ? ' passed' : '')}>${deadlineLabel(d.date, today)} · ${fmtDate(d.date)}</span></a>`}
-    </li>`)}</ul>` : html`<${EmptyState}>No confirmed deadlines in the next two weeks.<//>`}
+        : html`<a class="dl" href="#more/money"><span class="dl-title">${d.title}</span><span class=${'dl-when' + (d.date < today ? ' passed' : '')}>${d.label || deadlineLabel(d.date, today)} · ${fmtDate(d.date)}</span></a>`}
+    </li>`)}</ul>` : html`<${EmptyState}>No deadlines or payments due in the next two weeks.<//>`}
   <//>`;
 }
 

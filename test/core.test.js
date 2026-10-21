@@ -151,3 +151,34 @@ test('built-in quote is stable for a day and changes the next day', async () => 
   assert.notEqual(builtInQuote('2026-10-22').q, a.q);
   assert.ok(QUOTES.every(([q, by]) => q && by));
 });
+
+test('money: monthly dashboard and regular payments', async () => {
+  const { addMonths, advanceBill, upcomingBills, monthSummary, dueLabel, monthlyEquivalent } = await import('../public/js/core/money.js');
+  assert.equal(addMonths('2026-01-31', 1), '2026-02-28');
+  assert.equal(addMonths('2026-02-28', 1, 31), '2026-03-31'); // keeps the original due day
+  assert.equal(addMonths('2026-11-15', 3), '2027-02-15');
+  const emi = { id: 'b1', type: 'bill', book: 'personal', kind: 'emi', title: 'Car EMI', amount: 12000, repeat: 'monthly', nextDue: '2026-10-05', dueDay: 5, endDate: '2026-11-05' };
+  const once = advanceBill(emi);
+  assert.equal(once.nextDue, '2026-11-05');
+  assert.ok(!once.done);
+  assert.equal(advanceBill(once).done, true); // past its last payment
+  assert.equal(advanceBill({ ...emi, repeat: 'once' }).done, true);
+  assert.equal(monthlyEquivalent({ amount: 12000, repeat: 'yearly' }), 1000);
+  const fees = { ...emi, id: 'b2', title: 'Fees', nextDue: '2026-12-30', repeat: 'yearly' };
+  assert.deepEqual(upcomingBills([fees, emi, { type: 'spent' }], '2026-10-21', 30).map((b) => b.id), ['b1']); // late one included, far one not
+  assert.equal(dueLabel('2026-10-19', '2026-10-21'), '2 days late');
+  assert.equal(dueLabel('2026-10-22', '2026-10-21'), 'Due tomorrow');
+  const s = monthSummary([
+    { book: 'personal', type: 'spent', category: 'food', amount: 300, date: '2026-10-02' },
+    { book: 'personal', type: 'spent', category: 'food', amount: 200, date: '2026-10-02' },
+    { book: 'personal', type: 'spent', amount: 500, date: '2026-10-21' },
+    { book: 'personal', type: 'received', amount: 5000, date: '2026-10-01' },
+    { book: 'business', type: 'spent', category: 'food', amount: 999, date: '2026-10-02' },
+    { book: 'personal', type: 'spent', category: 'food', amount: 999, date: '2026-09-30' },
+  ], 'personal', '2026-10');
+  assert.equal(s.spent, 1000);
+  assert.equal(s.received, 5000);
+  assert.deepEqual(s.categories.map((c) => [c.id, c.total]), [['food', 500], ['other', 500]]);
+  assert.equal(s.byDay.length, 31);
+  assert.equal(s.byDay[1], 500);
+});

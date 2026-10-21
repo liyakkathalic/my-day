@@ -100,6 +100,7 @@ await check('Interactive controls are at least 44px tall (Today, Tasks, More)', 
 await check('Quick capture works without any onboarding, and tasks survive reload', async () => {
   await A.goto(`${BASE}/#today`);
   await capture(A, 'Call the bank about statement');
+  await A.evaluate(() => new Promise((r) => setTimeout(r, 300))); // let the local database write finish
   await A.reload();
   await A.getByText('Call the bank about statement').waitFor();
 });
@@ -190,6 +191,7 @@ await check('Offline changes are shown as unsynced and sync on reconnection', as
   await A.evaluate(() => window.dispatchEvent(new Event('offline')));
   await capture(A, 'Offline idea for a video');
   await A.waitForFunction(() => /Offline · \d+ not synced/.test(document.querySelector('.pill')?.textContent), null, { timeout: 5000 });
+  await A.evaluate(() => new Promise((r) => setTimeout(r, 300))); // let the local database write finish
   await A.reload().catch(() => {}); // offline reload is served by the service worker
   await A.getByText('Offline idea for a video').waitFor();
   await ctxA.setOffline(false);
@@ -330,7 +332,29 @@ await check('Office, Content and Money basics', async () => {
   await A.locator('.sums').getByText('₹15,000').waitFor();
   await A.getByRole('button', { name: 'Received', exact: true }).click();
   await A.getByRole('button', { name: 'Mark as received' }).click();
-  await A.locator('.sums div', { hasText: 'Received' }).first().getByText('₹15,000').waitFor();
+  await A.locator('.mini-stats div', { hasText: 'Received' }).getByText('₹15,000').waitFor();
+});
+
+await check('Money: expense by category, dashboard, and a regular payment that comes back next month', async () => {
+  await A.goto(`${BASE}/#more/money`);
+  await A.getByRole('button', { name: '+ Expense' }).click();
+  await A.getByLabel('Amount (₹)').fill('450');
+  await A.getByRole('button', { name: 'Food & groceries' }).click();
+  await A.getByRole('button', { name: 'Save', exact: true }).click();
+  await A.locator('.cat-bars').getByText('Food & groceries').waitFor();
+  await A.locator('.hero-num').getByText('₹450').waitFor();
+  await A.getByRole('button', { name: '+ Add', exact: true }).click();
+  await A.getByLabel('Name').fill('Car loan EMI');
+  await A.locator('#bl-amt').fill('12000');
+  await A.getByRole('button', { name: 'Save', exact: true }).click();
+  await A.locator('.bill-list').getByText('Car loan EMI').waitFor();
+  await A.getByRole('button', { name: 'Mark Car loan EMI as paid' }).click();
+  await A.getByRole('button', { name: 'Mark as paid' }).click();
+  await A.locator('.cat-bars').getByText('EMI & loans').waitFor();
+  await A.locator('.hero-num').getByText('₹12,450').waitFor();
+  await A.goto(`${BASE}/#today`);
+  await A.getByRole('heading', { name: 'Today’s three priorities' }).waitFor();
+  assert.equal(await A.locator('.deadlines').getByText('Car loan EMI').count(), 0); // next one is a month away
 });
 
 await check('No JavaScript errors during the run', async () => {
