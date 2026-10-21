@@ -40,10 +40,35 @@ export function closeSheet(id) {
   const s = sheets.find((x) => x.id === id) || sheets[sheets.length - 1];
   sheets = sheets.filter((x) => x !== s);
   emitSheets();
+  s?.props?.onDismiss?.();
   s?.opener?.focus?.({ preventScroll: true });
 }
 export const sheetOpen = () => sheets.length > 0;
-export function closeAllSheets() { if (sheets.length) { sheets = []; emitSheets(); } }
+export function closeAllSheets() {
+  if (!sheets.length) return;
+  const closing = sheets;
+  sheets = [];
+  emitSheets();
+  closing.forEach((x) => x.props?.onDismiss?.());
+}
+
+/** In-app confirmation (browser confirm() dialogs are blocked in some views). Resolves true or false. */
+export function askConfirm(message, { ok = 'Yes', cancel = 'Cancel' } = {}) {
+  return new Promise((resolve) => {
+    let answered = false;
+    const answer = (v) => { if (!answered) { answered = true; resolve(v); } };
+    openSheet('Please confirm', ConfirmBody, { message, ok, cancel, answer, onDismiss: () => answer(false) });
+  });
+}
+function ConfirmBody({ message, ok, cancel, answer, close }) {
+  return html`<div class="stack">
+    <p>${message}</p>
+    <div class="sheet-actions">
+      <button type="button" class="btn quiet" onClick=${() => { answer(false); close(); }}>${cancel}</button>
+      <button type="button" class="btn" data-autofocus onClick=${() => { answer(true); close(); }}>${ok}</button>
+    </div>
+  </div>`;
+}
 addEventListener('hashchange', closeAllSheets);
 
 export function SheetHost() {
@@ -310,8 +335,8 @@ export function TaskEditor({ task, close, defaults = {} }) {
     close();
     toast(isNew ? 'Task added' : 'Saved');
   };
-  const del = () => {
-    if (!confirm(t.seriesId ? 'Skip this day of the routine?' : 'Delete this task? This cannot be undone.')) return;
+  const del = async () => {
+    if (!(await askConfirm(t.seriesId ? 'Skip this day of the routine?' : 'Delete this task? This cannot be undone.', { ok: t.seriesId ? 'Skip this day' : 'Delete' }))) return;
     M.deleteTask(task);
     close();
     toast(t.seriesId ? 'Skipped for this day' : 'Deleted');
@@ -358,7 +383,7 @@ export function TaskEditor({ task, close, defaults = {} }) {
 }
 
 export function syncLabel(s) {
-  if (!s.signedIn) return { text: 'On this device only', tone: 'neutral' };
+  if (!s.signedIn) return { text: s.cloudChecked ? 'On this device only' : 'Connecting…', tone: 'neutral' };
   if (s.conflicts) return { text: `${s.conflicts} to review`, tone: 'attn' };
   if (!s.online) return { text: s.pending ? `Offline · ${s.pending} not synced` : 'Offline', tone: 'neutral' };
   if (s.syncing) return { text: 'Syncing…', tone: 'neutral' };

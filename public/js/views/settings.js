@@ -4,6 +4,7 @@ import { SubHeader } from './more.js';
 import * as M from '../model.js';
 import { isStandalone, isIOS } from '../push-client.js';
 import { isValidTime } from '../core/time.js';
+import { IS_ARTIFACT } from '../config.js';
 
 const ZONES = (() => {
   try { return Intl.supportedValuesOf('timeZone'); } catch { return ['Asia/Kolkata', 'Asia/Dubai', 'Asia/Singapore', 'Europe/London', 'America/New_York', 'UTC']; }
@@ -30,7 +31,26 @@ export function SettingsView() {
   </div>`;
 }
 
+function WebAppInstall() {
+  return html`<div class="screen">
+    <${SubHeader} title="Add to Home Screen" />
+    <${Card} title="On iPhone">
+      <ol class="steps">
+        <li>Open your My Day link in <strong>Safari</strong> and sign in to claude.ai if asked.</li>
+        <li>Tap the <strong>Share</strong> button (square with an arrow).</li>
+        <li>Tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
+        <li>Open My Day from its icon. It opens through claude.ai, so you stay signed in there.</li>
+      </ol>
+      <p class="hint">Your data is saved to your claude.ai account, so it is the same in Safari, the Claude app and on your computer.</p>
+    <//>
+    <${Card} title="On a computer">
+      <p>Bookmark the link, or pin the tab.</p>
+    <//>
+  </div>`;
+}
+
 export function InstallView() {
+  if (IS_ARTIFACT) return html`<${WebAppInstall} />`;
   const standalone = isStandalone();
   return html`<div class="screen">
     <${SubHeader} title="Add to Home Screen" />

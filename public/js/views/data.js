@@ -1,5 +1,6 @@
 import { html, useState } from '../../vendor/preact-htm.js';
-import { useStore, Card, Field, toast, syncLabel } from '../ui.js';
+import { useStore, Card, Field, toast, syncLabel, askConfirm } from '../ui.js';
+import { IS_ARTIFACT } from '../config.js';
 import { SubHeader } from './more.js';
 import * as store from '../store.js';
 import { api } from '../api.js';
@@ -32,7 +33,33 @@ function Conflicts() {
   <//>`;
 }
 
+function CloudView() {
+  useStore();
+  const s = store.syncState();
+  const l = syncLabel(s);
+  return html`<div class="screen">
+    <${SubHeader} title="Cloud copy" />
+    <${Conflicts} />
+    <${Card} title="Status">
+      <p><span class=${'pill ' + l.tone}>${l.text}</span></p>
+      ${s.signedIn
+        ? html`<p>Everything is saved to your claude.ai account, in a private area only you can read — even if you share this link. Open the same link on another device while signed in to see the same data.</p>`
+        : s.cloudChecked
+          ? html`<p class="note">The cloud copy is not available right now (signed out, or no connection). Your changes are kept on this device and will be saved to the cloud when it is available again.</p>`
+          : html`<p>Connecting to your account…</p>`}
+      <ul class="plain">
+        <li>Connection: ${s.online ? 'online' : 'offline'}</li>
+        <li>Changes waiting to be saved to the cloud: ${s.pending}</li>
+        <li>Last update from the cloud: ${when(s.lastSyncAt)}</li>
+        ${s.lastError && html`<li>Problem: ${s.lastError}</li>`}
+      </ul>
+      ${s.signedIn && s.pending > 0 && html`<div class="row"><button class="btn secondary" onClick=${() => store.sync()} disabled=${s.syncing || !s.online}>Save now</button></div>`}
+    <//>
+  </div>`;
+}
+
 export function SyncView() {
+  if (IS_ARTIFACT) return html`<${CloudView} />`;
   useStore();
   const s = store.syncState();
   const [pw, setPw] = useState('');
@@ -61,7 +88,7 @@ export function SyncView() {
     <//>
     ${s.signedIn ? html`<${Card} title="Account">
         <p>You are signed in. Your data is backed up to your server.</p>
-        <button class="btn quiet" onClick=${async () => { if (s.pending && !confirm(`${s.pending} changes have not synced yet. They stay on this device, but will not reach the server until you sign in again. Sign out anyway?`)) return; await store.signOut(); toast('Signed out'); }}>Sign out</button>
+        <button class="btn quiet" onClick=${async () => { if (s.pending && !(await askConfirm(`${s.pending} changes have not synced yet. They stay on this device, but will not reach the server until you sign in again. Sign out anyway?`, { ok: 'Sign out' }))) return; await store.signOut(); toast('Signed out'); }}>Sign out</button>
       <//>`
       : html`<${Card} title="Sign in">
         <p>Sign in to back up your data and use it on more than one device. Until then, everything is saved on this device only.</p>
@@ -76,6 +103,16 @@ export function SyncView() {
 }
 
 async function saveFile(name, obj) {
+  if (IS_ARTIFACT) {
+    // Web-app edition: the page may only offer files through the platform's save prompt.
+    const downloads = await window.claude?.use?.('downloads');
+    if (!downloads) throw new Error('Saving files is not available here. Use “Copy backup” instead.');
+    try { await downloads.save({ filename: name, data: JSON.stringify(obj, null, 2) }); return true; }
+    catch (e) {
+      if (e?.code === 'declined') return false;
+      throw new Error(e?.code === 'rate_limited' ? 'A save prompt is already open. Please try again in a moment.' : 'The file could not be saved here. Use “Copy backup” instead.');
+    }
+  }
   const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
   const file = new File([blob], name, { type: 'application/json' });
   if (navigator.canShare?.({ files: [file] })) {
@@ -97,13 +134,22 @@ export function DataView() {
   const [backup, setBackup] = useState(null);
   const [counts, setCounts] = useState(null);
   const [err, setErr] = useState('');
+  const [expErr, setExpErr] = useState('');
   const [last, setLast] = useState(readLast());
+  const markExported = () => { try { localStorage.setItem(lastExportKey, String(Date.now())); } catch {} setLast(Date.now()); };
   const exportNow = async () => {
-    const ok = await saveFile(`myday-backup-${M.today()}.json`, store.exportData());
-    if (ok) { try { localStorage.setItem(lastExportKey, String(Date.now())); } catch {} setLast(Date.now()); toast('Backup file created'); }
+    setExpErr('');
+    try {
+      if (await saveFile(`myday-backup-${M.today()}.json`, store.exportData())) { markExported(); toast('Backup file saved'); }
+    } catch (e) { setExpErr(e.message); }
+  };
+  const copyBackup = async () => {
+    setExpErr('');
+    try { await navigator.clipboard.writeText(JSON.stringify(store.exportData())); markExported(); toast('Backup copied. Paste it into a note or file to keep it.'); }
+    catch { setExpErr('Copying is not allowed here. Use “Save a backup file”.'); }
   };
   const exportCloud = async () => {
-    try { await saveFile(`myday-cloud-${M.today()}.json`, await api('/api/export')); } catch (e) { setErr(e.message); }
+    try { await saveFile(`myday-cloud-${M.today()}.json`, await api('/api/export')); } catch (e) { setExpErr(e.message); }
   };
   const pick = async (e) => {
     setErr(''); setBackup(null); setCounts(null);
@@ -116,7 +162,7 @@ export function DataView() {
     } catch (x) { setErr(x instanceof SyntaxError ? 'This file could not be read as a backup.' : x.message); }
   };
   const restore = async (mode) => {
-    if (mode === 'replace' && !confirm('Replace everything with this backup? Items not in the backup will be removed from this device' + (s.signedIn ? ' and from the cloud.' : '.'))) return;
+    if (mode === 'replace' && !(await askConfirm('Replace everything with this backup? Items not in the backup will be removed from this device' + (s.signedIn ? ' and from the cloud.' : '.'), { ok: 'Replace everything' }))) return;
     const n = await store.restoreData(backup, mode);
     M.materializeRoutines();
     setBackup(null); setCounts(null);
@@ -127,7 +173,9 @@ export function DataView() {
     <${Card} title="Where your data is kept">
       <ul class="plain">
         <li>On this device (works offline).</li>
-        <li>${s.signedIn ? 'On your server, synced automatically. The server also keeps a daily copy for 14 days.' : 'Not on a server yet — sign in to add a cloud copy.'}</li>
+        <li>${IS_ARTIFACT
+          ? (s.signedIn ? 'In your claude.ai account (private to you), saved automatically.' : 'Not in the cloud right now — it will be saved when your account is reachable.')
+          : (s.signedIn ? 'On your server, synced automatically. The server also keeps a daily copy for 14 days.' : 'Not on a server yet — sign in to add a cloud copy.')}</li>
         <li>In backup files you export (recommended once a week; keep them in iCloud Drive or Files).</li>
       </ul>
     <//>
@@ -135,8 +183,10 @@ export function DataView() {
       <p class="hint">Last backup file from this device: ${last ? when(last) : 'none yet'}</p>
       <div class="action-grid">
         <button class="btn" onClick=${exportNow}>Save a backup file</button>
-        ${s.signedIn && s.online && html`<button class="btn secondary" onClick=${exportCloud}>Download the cloud copy</button>`}
+        ${IS_ARTIFACT && html`<button class="btn secondary" onClick=${copyBackup}>Copy backup</button>`}
+        ${!IS_ARTIFACT && s.signedIn && s.online && html`<button class="btn secondary" onClick=${exportCloud}>Download the cloud copy</button>`}
       </div>
+      ${expErr && html`<p class="status-msg" role="alert">${expErr}</p>`}
     <//>
     <${Card} title="Restore">
       <label class="btn secondary file-btn">Choose a backup file<input type="file" accept="application/json,.json" onChange=${pick} /></label>

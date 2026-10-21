@@ -1,5 +1,5 @@
 import { html, useState } from '../../vendor/preact-htm.js';
-import { useStore, openSheet, Field, toast, Segmented } from '../ui.js';
+import { useStore, openSheet, Field, toast, Segmented, askConfirm } from '../ui.js';
 import { SubHeader } from './more.js';
 import * as M from '../model.js';
 import { blocksForDate, findOverlaps } from '../core/schedule.js';
@@ -44,10 +44,10 @@ function BlockEditor({ block, weekday, close }) {
     close();
     toast('Schedule saved');
   };
-  const del = () => {
-    const s = M.schedule();
+  const del = async () => {
     const onlyHere = shared && scope === 'one';
-    if (!confirm(onlyHere ? `Remove this block from ${weekdayName(weekday)} only?` : 'Delete this block from every day it appears on?')) return;
+    if (!(await askConfirm(onlyHere ? `Remove this block from ${weekdayName(weekday)} only?` : 'Delete this block from every day it appears on?', { ok: 'Remove' }))) return;
+    const s = M.schedule();
     const blocks = onlyHere
       ? s.blocks.map((x) => (x.id === block.id ? { ...x, days: x.days.filter((d) => d !== weekday) } : x))
       : s.blocks.filter((x) => x.id !== block.id);
@@ -86,8 +86,8 @@ export function ScheduleView({ sub }) {
   const date = dateForWeekday(wd);
   const blocks = blocksForDate(s.blocks, date);
   const overlaps = findOverlaps(s.blocks, date);
-  const reset = () => {
-    if (!confirm('Replace your whole schedule and themes with the original defaults?')) return;
+  const reset = async () => {
+    if (!(await askConfirm('Replace your whole schedule and themes with the original defaults?', { ok: 'Reset schedule' }))) return;
     M.saveSchedule(defaultSchedule());
     toast('Default schedule restored');
   };

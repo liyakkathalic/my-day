@@ -1,5 +1,5 @@
 import { html, useState } from '../../vendor/preact-htm.js';
-import { useStore, openSheet, Field, Chips, categoryOptions, Segmented, toast, EmptyState } from '../ui.js';
+import { useStore, openSheet, Field, Chips, categoryOptions, Segmented, toast, EmptyState, askConfirm } from '../ui.js';
 import { SubHeader } from './more.js';
 import * as M from '../model.js';
 import { weekdayName, fmtTime, fmtDate } from '../core/time.js';
@@ -20,8 +20,8 @@ function RoutineEditor({ series, close }) {
     close();
     toast(isNew ? 'Routine added' : 'Routine updated');
   };
-  const stop = () => {
-    if (!confirm('Stop this routine? Days already done stay in your history.')) return;
+  const stop = async () => {
+    if (!(await askConfirm('Stop this routine? Days already done stay in your history.', { ok: 'Stop routine' }))) return;
     M.endSeries(series);
     close();
     toast('Routine stopped');

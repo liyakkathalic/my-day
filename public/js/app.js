@@ -15,6 +15,8 @@ import { OfficeView } from './views/office.js';
 import { ContentView } from './views/content.js';
 import { MoneyView } from './views/money.js';
 import { repairSubscription } from './push-client.js';
+import { IS_ARTIFACT } from './config.js';
+import { dueReminders, reminderText } from './core/reminders.js';
 
 const MORE = {
   schedule: ScheduleView, themes: ThemesView, routines: RoutinesView, notifications: NotificationsView,
@@ -93,8 +95,19 @@ function trackViewport() {
   });
 }
 
+// Web-app edition only: show reminders inside the page while it is open.
+function inPageReminders() {
+  let last = Date.now();
+  setInterval(() => {
+    const now = Date.now();
+    const due = dueReminders({ reminders: M.reminders(), tasks: M.tasks(), settings: M.settings() }, last, now);
+    last = now;
+    if (due.length) toast(reminderText(due[due.length - 1].textKey));
+  }, 20_000);
+}
+
 function registerServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
+  if (IS_ARTIFACT || !('serviceWorker' in navigator)) return;
   navigator.serviceWorker.register('/sw.js').then((reg) => {
     reg.addEventListener('updatefound', () => {
       const w = reg.installing;
@@ -122,14 +135,16 @@ async function boot() {
     return;
   }
   // Get the cloud copy first (briefly) so defaults never fight with real data.
-  if (store.syncState().signedIn && navigator.onLine) await Promise.race([store.sync(), new Promise((r) => setTimeout(r, 4000))]);
+  if (IS_ARTIFACT) await store.cloudReady;
+  else if (store.syncState().signedIn && navigator.onLine) await Promise.race([store.sync(), new Promise((r) => setTimeout(r, 4000))]);
   M.ensureDefaults();
   M.materializeRoutines();
   trackViewport();
   root.textContent = '';
   render(html`<${App} />`, root);
   registerServiceWorker();
-  if (store.syncState().signedIn) repairSubscription();
+  if (IS_ARTIFACT) inPageReminders();
+  else if (store.syncState().signedIn) repairSubscription();
   // New day while the app stays open: create today's routine tasks.
   let day = M.today();
   setInterval(() => { if (M.today() !== day) { day = M.today(); M.materializeRoutines(); } }, 60_000);

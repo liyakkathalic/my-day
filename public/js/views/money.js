@@ -1,5 +1,5 @@
 import { html, useState } from '../../vendor/preact-htm.js';
-import { useStore, Card, openSheet, Field, toast, Segmented, Chips, EmptyState } from '../ui.js';
+import { useStore, Card, openSheet, Field, toast, Segmented, Chips, EmptyState, askConfirm } from '../ui.js';
 import { SubHeader } from './more.js';
 import * as M from '../model.js';
 import * as store from '../store.js';
@@ -27,7 +27,7 @@ function EntryEditor({ entry, book, close, type: initialType }) {
     close();
     toast('Saved');
   };
-  const del = () => { if (confirm('Delete this entry?')) { store.remove('money', e.id); close(); } };
+  const del = async () => { if (await askConfirm('Delete this entry?', { ok: 'Delete' })) { store.remove('money', e.id); close(); } };
   return html`<form class="stack" onSubmit=${save}>
     <${Segmented} label="Book" value=${e.book} onChange=${(v) => set('book', v)} options=${[['personal', 'Personal'], ['business', 'Business']]} />
     <${Field} label="Type" id="me-type"><select id="me-type" value=${e.type} onChange=${(x) => set('type', x.currentTarget.value)}>${Object.entries(MONEY_TYPES).map(([v, l]) => html`<option value=${v}>${l}</option>`)}</select><//>

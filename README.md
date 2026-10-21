@@ -11,6 +11,18 @@ offline.
 * iPhone set-up, real-device tests and the 7-day trial: [docs/IPHONE-TESTING.md](docs/IPHONE-TESTING.md)
 * What is done and what is still unverified: [docs/STATUS.md](docs/STATUS.md)
 
+## Two editions
+
+| | Web app (claude.ai) | Self-hosted |
+|---|---|---|
+| Open it | The private claude.ai link — nothing to install or host | Your own server with HTTPS |
+| Data | Your claude.ai account (private area) + this device | Your server + this device + daily server backups |
+| Phone notifications with the app closed | **No** — reminders only appear while the page is open | Yes (Web Push) |
+| Works offline | Only while already open | Yes (service worker) |
+| Build | `npm run build:web` → `dist-artifact/my-day.html` | `npm start` |
+
+Both come from the same code; `MYDAY_MODE` (see `public/js/config.js`) switches the storage.
+
 ## Run it on your computer (5 minutes)
 
 Requires Node.js 22.13 or newer.
@@ -29,6 +41,7 @@ always use `npm start` behind HTTPS (see DEPLOY.md).
 ```bash
 npm test            # unit + server tests: time zone, schedule, recurrence, sync conflicts, reminder scheduler
 npm run test:e2e    # simulated browser checks in headless Chromium at iPhone size
+npm run build:web && node test/web-app.mjs   # web-app edition with a stand-in claude.ai runtime
 ```
 
 The browser checks are **simulations** (Chromium, not Safari, no real keyboard,

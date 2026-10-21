@@ -5,6 +5,8 @@
 //   from another device is never silently overwritten — it becomes a conflict
 //   that I choose how to resolve.
 import { api } from './api.js';
+import { IS_ARTIFACT } from './config.js';
+import * as cloud from './cloud.js';
 
 const DB_NAME = 'myday';
 let idb;
@@ -13,7 +15,11 @@ const outbox = new Map();  // key -> { baseRev, gen, force }
 const conflicts = new Map(); // key -> { server }
 const meta = { lastSeq: 0, signedIn: false, lastSyncAt: 0, lastError: '', localOnlySince: 0 };
 const listeners = new Set();
-export const status = { syncing: false, online: navigator.onLine, ready: false };
+export const status = { syncing: false, online: navigator.onLine, ready: false, cloudChecked: !IS_ARTIFACT };
+const echo = new Map(); // key -> revision of my own in-flight cloud write
+let cloudFirst;
+/** Web-app edition: resolves true once the first cloud copy has arrived (false if unavailable). */
+export const cloudReady = new Promise((r) => { cloudFirst = r; });
 
 const k = (col, id) => `${col}/${id}`;
 const clone = (x) => (x == null ? x : JSON.parse(JSON.stringify(x)));
@@ -88,10 +94,13 @@ export async function init() {
   window.addEventListener('offline', () => { status.online = false; emit(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
   setInterval(() => { if (!document.hidden) sync(); }, 60_000);
-  try {
-    const s = await api('/api/session');
-    meta.signedIn = s.signedIn;
-  } catch { /* offline: keep the last known sign-in state */ }
+  if (IS_ARTIFACT) { meta.signedIn = false; connectCloud(); }
+  else {
+    try {
+      const s = await api('/api/session');
+      meta.signedIn = s.signedIn;
+    } catch { /* offline: keep the last known sign-in state */ }
+  }
   status.ready = true;
   emit();
 }
@@ -161,7 +170,12 @@ function acceptServer(key, s) {
 
 function onServerCopy(key, s) {
   const ob = outbox.get(key);
-  if (!ob) return acceptServer(key, s);
+  if (!ob) {
+    const cur = records.get(key);
+    if (cur && cur.rev === s.rev) return; // already have this version
+    return acceptServer(key, s);
+  }
+  if (echo.get(key) === s.rev) return; // my own write arriving back
   if (s.rev <= ob.baseRev) return; // our own earlier write echoing back
   const local = records.get(key);
   if (ob.gen || (local && sameData(local.data, s.data) && !!local.deleted === !!s.deleted)) return acceptServer(key, s);
@@ -176,9 +190,12 @@ export function sync() {
   status.syncing = true;
   emit();
   syncPromise = (async () => {
+    // Yield first: if nothing below awaits, the finally block must still run
+    // after syncPromise has been assigned, or it would never be cleared.
+    await null;
     try {
-      // 1. Pull newer copies from the server.
-      for (let more = true; more;) {
+      // 1. Pull newer copies from the server (the web-app edition gets them live instead).
+      for (let more = !IS_ARTIFACT; more;) {
         const r = await api(`/api/sync?since=${meta.lastSeq}`);
         for (const s of r.records) onServerCopy(k(s.col, s.id), s);
         persist(r.records.map((s) => k(s.col, s.id)));
@@ -194,7 +211,11 @@ export function sync() {
           const r = records.get(key);
           return { col: r.col, id: r.id, baseRev: outbox.get(key).baseRev, deleted: !!r.deleted, data: r.deleted ? undefined : r.data };
         });
-        const { results } = await api('/api/sync', { method: 'POST', body: { changes } });
+        changes.forEach((c) => echo.set(k(c.col, c.id), c.baseRev + 1));
+        let results;
+        try {
+          results = IS_ARTIFACT ? await cloud.push(changes) : (await api('/api/sync', { method: 'POST', body: { changes } })).results;
+        } finally { changes.forEach((c) => echo.delete(k(c.col, c.id))); }
         let retry = false;
         results.forEach((res, i) => {
           const key = keys[i];
@@ -218,7 +239,8 @@ export function sync() {
       meta.lastError = '';
     } catch (e) {
       if (e.status === 401) meta.signedIn = false;
-      meta.lastError = e.status === 0 ? '' : e.message;
+      meta.lastError = e.status === 0 || e.code === 'unavailable' ? '' : e.message || 'Could not reach the cloud copy';
+      if (e.code === 'revoked') meta.signedIn = false;
     } finally {
       status.syncing = false;
       syncPromise = null;
@@ -227,6 +249,23 @@ export function sync() {
     }
   })();
   return syncPromise;
+}
+
+// ---- web-app edition: claude.ai account storage ----
+async function connectCloud() {
+  const ok = await cloud.connect();
+  status.cloudChecked = true;
+  meta.signedIn = ok;
+  emit();
+  if (!ok) { cloudFirst(false); return; }
+  cloud.subscribe((recs, isFirst) => {
+    for (const s of recs) onServerCopy(k(s.col, s.id), s);
+    if (recs.length) persist(recs.map((s) => k(s.col, s.id)));
+    meta.lastSyncAt = Date.now();
+    emit();
+    if (isFirst) { cloudFirst(true); sync(); }
+  }, () => { meta.signedIn = false; emit(); cloudFirst(false); });
+  setTimeout(() => cloudFirst(false), 8000);
 }
 
 // ---- conflicts ----
@@ -272,6 +311,7 @@ export async function signOut() {
 export function syncState() {
   return {
     signedIn: meta.signedIn,
+    cloudChecked: status.cloudChecked,
     online: status.online,
     syncing: status.syncing,
     pending: outbox.size,

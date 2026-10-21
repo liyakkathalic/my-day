@@ -1,5 +1,5 @@
 import { html, useState } from '../../vendor/preact-htm.js';
-import { useStore, Card, openSheet, Field, toast, Chips, EmptyState } from '../ui.js';
+import { useStore, Card, openSheet, Field, toast, Chips, EmptyState, askConfirm } from '../ui.js';
 import { SubHeader } from './more.js';
 import * as M from '../model.js';
 import * as store from '../store.js';
@@ -33,7 +33,7 @@ function ContentEditor({ item, close }) {
     close();
     toast(isNew ? 'Content item added' : 'Saved');
   };
-  const del = () => { if (confirm('Delete this content item?')) { store.remove('content', c.id); close(); } };
+  const del = async () => { if (await askConfirm('Delete this content item?', { ok: 'Delete' })) { store.remove('content', c.id); close(); } };
   const copy = async () => {
     try { await navigator.clipboard.writeText(instructionsText(c)); toast('Copied. Paste it into your own message to the editor.'); }
     catch { toast('Could not copy on this device.'); }

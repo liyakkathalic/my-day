@@ -8,6 +8,18 @@ Legend: **Tested** = covered by automated tests that passed in this build enviro
 
 * `npm test` — 17/17 passed (time zone, schedule, recurrence, task lists, reminders, server sync, scheduler)
 * `npm run test:e2e` — 24/24 simulated checks passed (headless Chromium 440×956, 320×568, 1280×800)
+* `node test/web-app.mjs` — 8/8 simulated web-app checks passed (stand-in claude.ai runtime)
+
+## Web-app edition (claude.ai link)
+
+| Feature | State |
+|---|---|
+| Same screens and rules as the self-hosted app | Built from the same code |
+| Data saved to the person's private area of the claude.ai database, live across devices, conflicts never overwritten | Simulated with a stand-in runtime (8/8 checks) |
+| Works without the cloud store (keeps data on the device, says so) | Simulated |
+| In-app confirmations (browser dialogs are blocked there), export through the platform save prompt, copy backup | Simulated |
+| Reminders shown only while the page is open; push when closed is **not available** in this edition | Stated in the app |
+| **Behaviour inside the real claude.ai viewer, Safari and the Claude iOS app** | **Unverified** |
 
 ## Milestone 1 — Plan ✔
 Screen flow, stack, hosting and costs: docs/PLAN.md.

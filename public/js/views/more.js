@@ -1,6 +1,7 @@
 import { html } from '../../vendor/preact-htm.js';
 import { useStore, SyncPill, syncLabel } from '../ui.js';
 import * as store from '../store.js';
+import { IS_ARTIFACT } from '../config.js';
 
 const ITEMS = [
   ['Plan', [
@@ -13,11 +14,11 @@ const ITEMS = [
     ['schedule', 'Schedule', 'Edit time blocks for each day'],
     ['themes', 'Administration themes', 'One theme per weekday'],
     ['notifications', 'Reminders and notifications', 'Office check, shutdown, weekly review'],
-    ['install', 'Add to Home Screen', 'Install on iPhone'],
+    ['install', 'Add to Home Screen', IS_ARTIFACT ? 'Open it like an app on iPhone' : 'Install on iPhone'],
     ['settings', 'Settings', 'Time zone and quiet hours'],
   ]],
   ['Your data', [
-    ['sync', 'Sign-in and sync', null],
+    ['sync', IS_ARTIFACT ? 'Cloud copy' : 'Sign-in and sync', null],
     ['data', 'Backup and restore', 'Export a file or restore one'],
   ]],
 ];
@@ -33,7 +34,7 @@ export function MoreView() {
         <span class="menu-title">${title}</span><span class="menu-desc">${desc || s.text}</span><span class="chev" aria-hidden="true">›</span>
       </a></li>`)}</ul>
     </section>`)}
-    <p class="hint center">My Day · version 0.1 · Private, single-user</p>
+    <p class="hint center">My Day · version 0.1${IS_ARTIFACT ? ' · web app' : ''} · Private, single-user</p>
   </div>`;
 }
 
