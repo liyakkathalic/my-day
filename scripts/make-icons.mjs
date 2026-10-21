@@ -3,10 +3,11 @@ import { chromium } from 'playwright-core';
 import fs from 'node:fs';
 
 const svg = (pad) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#2f6f62"/>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9a6b"/><stop offset="0.45" stop-color="#d64593"/><stop offset="1" stop-color="#5b4bdb"/></linearGradient></defs>
+  <rect width="512" height="512" fill="url(#g)"/>
   <g transform="translate(256 256) scale(${1 - pad})">
-    <circle r="92" fill="none" stroke="#f6f5f1" stroke-width="30"/>
-    <g stroke="#f6f5f1" stroke-width="30" stroke-linecap="round">
+    <circle r="92" fill="none" stroke="#ffffff" stroke-width="30"/>
+    <g stroke="#ffffff" stroke-width="30" stroke-linecap="round">
       ${[0, 45, 90, 135, 180, 225, 270, 315].map((a) => `<line x1="0" y1="-140" x2="0" y2="-176" transform="rotate(${a})"/>`).join('')}
     </g>
   </g>

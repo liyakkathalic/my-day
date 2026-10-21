@@ -338,10 +338,14 @@ await check('Office, Content and Money basics', async () => {
 await check('Money: expense by category, dashboard, and a regular payment that comes back next month', async () => {
   await A.goto(`${BASE}/#more/money`);
   await A.getByRole('button', { name: '+ Expense' }).click();
+  await A.locator('#me-item').selectOption('Groceries');
+  assert.equal(await A.locator('#me-cat').inputValue(), 'food'); // item fills in the category
   await A.getByLabel('Amount (₹)').fill('450');
-  await A.getByRole('button', { name: 'Food & groceries' }).click();
+  await A.getByRole('tab', { name: 'Bank / UPI' }).click();
+  await A.getByLabel('Which bank').selectOption('Axis Bank');
   await A.getByRole('button', { name: 'Save', exact: true }).click();
   await A.locator('.cat-bars').getByText('Food & groceries').waitFor();
+  await A.locator('.pay-list').getByText('Axis Bank').waitFor();
   await A.locator('.hero-num').getByText('₹450').waitFor();
   await A.getByRole('button', { name: '+ Add', exact: true }).click();
   await A.getByLabel('Name').fill('Car loan EMI');
@@ -355,6 +359,10 @@ await check('Money: expense by category, dashboard, and a regular payment that c
   await A.goto(`${BASE}/#today`);
   await A.getByRole('heading', { name: 'Today’s three priorities' }).waitFor();
   assert.equal(await A.locator('.deadlines').getByText('Car loan EMI').count(), 0); // next one is a month away
+  await A.locator('.money-snap').getByText('₹12,450 spent').waitFor();
+  assert.equal(await A.locator('.bottom-nav a[href="#money"]').count(), 1);
+  await A.goto(`${BASE}/#money`);
+  await A.locator('.hero-num').getByText('₹12,450').waitFor();
 });
 
 await check('No JavaScript errors during the run', async () => {

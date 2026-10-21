@@ -6,7 +6,8 @@ import { tasksForList, priorities, upcomingDeadlines, deadlineLabel, followUpDue
 import { fmtTime, fmtDate, addDays, relDate, toMinutes, nowMinutes } from '../core/time.js';
 import { MONEY_TYPES } from '../core/defaults.js';
 import { builtInQuote } from '../core/quotes.js';
-import { upcomingBills, category, dueLabel } from '../core/money.js';
+import { upcomingBills, category, dueLabel, monthSummary, monthOf } from '../core/money.js';
+import { openExpense } from './money.js';
 
 const inr0 = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
 import { cachedQuote, loadQuote } from '../quote.js';
@@ -21,6 +22,23 @@ function QuoteBanner({ today }) {
     <blockquote>${quote.q}</blockquote>
     <figcaption>— ${quote.a}${quote.source === 'zenquotes' && html` · <a href="https://zenquotes.io/" target="_blank" rel="noopener">ZenQuotes</a>`}</figcaption>
   </figure>`;
+}
+
+function MoneySnapshot({ today }) {
+  const all = M.moneyEntries();
+  const s = monthSummary(all, 'personal', monthOf(today));
+  const next = upcomingBills(all, today, 30)[0];
+  return html`<section class="card money-snap" aria-label="Money">
+    <a class="snap-main" href="#money">
+      <span class="snap-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2.8" y="6" width="18.4" height="13" rx="3"/><path d="M2.8 10h18.4M16 14.5h2.2"/><path d="M6 6l8.5-3 1.4 3"/></svg></span>
+      <span class="snap-text">
+        <span class="eyebrow">Money · this month</span>
+        <strong>${inr0.format(Math.round(s.spent))} spent</strong>
+        <span class="task-meta">${next ? `${category(next.kind).icon} ${next.title}: ${dueLabel(next.nextDue, today).toLowerCase()}` : 'No payments due in the next 30 days'}</span>
+      </span>
+    </a>
+    <button class="btn small" onClick=${() => openExpense()}>+ Expense</button>
+  </section>`;
 }
 
 function greeting(min) {
@@ -150,6 +168,7 @@ export function TodayView() {
     </header>
     ${IS_CLOUD && !syncState().signedIn && html`<a class="card attn signin-nudge" href="#more/sync"><strong>${syncState().passwordSet ? 'Sign in to sync' : 'Set up your password'}</strong><span>Until then, changes stay on this device only.</span></a>`}
     <${NowCard} now=${now} />
+    <${MoneySnapshot} today=${today} />
     <${Card} title="Today’s three priorities">
       <ul class="task-list prio">
         ${prios.map((t) => html`<${TaskRow} key=${t.id} task=${t} today=${today} actions=${true} />`)}

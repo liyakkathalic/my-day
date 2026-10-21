@@ -1,5 +1,5 @@
 import { html, useState } from '../../vendor/preact-htm.js';
-import { useStore, Card, openSheet, Field, toast, Segmented, Chips, EmptyState, askConfirm } from '../ui.js';
+import { useStore, Card, openSheet, Field, toast, Segmented, Chips, EmptyState, askConfirm, SyncPill } from '../ui.js';
 import { SubHeader } from './more.js';
 import * as M from '../model.js';
 import * as store from '../store.js';
@@ -7,7 +7,7 @@ import { MONEY_TYPES } from '../core/defaults.js';
 import { fmtDate, isValidDate, relDate, addDays } from '../core/time.js';
 import { deadlineLabel } from '../core/tasks.js';
 import {
-  SPEND_CATEGORIES, BILL_KINDS, REPEATS, category, repeatLabel, advanceBill, monthlyEquivalent,
+  SPEND_CATEGORIES, COMMON_ITEMS, itemCategory, PAY_METHODS, BANKS, payLabel, BILL_KINDS, REPEATS, category, repeatLabel, advanceBill, monthlyEquivalent,
   upcomingBills, dueLabel, monthOf, shiftMonth, monthSummary,
 } from '../core/money.js';
 
@@ -17,23 +17,66 @@ const money = (n) => inr.format(Number(n) || 0);
 const money0 = (n) => inr0.format(Math.round(Number(n) || 0));
 const HAS_STATUS = new Set(['expected', 'receivable', 'payable']);
 const HAS_CATEGORY = new Set(['spent', 'payable']);
+const HAS_VIA = new Set(['spent', 'received']);
 const outstanding = (e) => Math.max(0, (Number(e.amount) || 0) - (Number(e.paidAmount) || 0));
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const monthName = (ym) => `${MONTHS[Number(ym.slice(5)) - 1]} ${ym.slice(0, 4)}`;
 const shortDate = (d) => `${Number(d.slice(8))} ${MONTHS[Number(d.slice(5, 7)) - 1].slice(0, 3)}`;
 const numInput = (v) => v.replace(/[^\d.]/g, '');
 
-function CategoryPicker({ value, onChange, ids }) {
-  const list = ids ? SPEND_CATEGORIES.filter(([id]) => ids.includes(id)) : SPEND_CATEGORIES;
-  return html`<div class="chips cat-chips" role="group" aria-label="Category">
-    ${list.map(([id, label, icon]) => html`<button type="button" class=${'chip' + (id === value ? ' on' : '')} aria-pressed=${id === value}
-      onClick=${() => onChange(id)}><span aria-hidden="true">${icon}</span> ${label}</button>`)}
-  </div>`;
+function CategorySelect({ id, value, onChange, ids }) {
+  const list = ids ? SPEND_CATEGORIES.filter(([c]) => ids.includes(c)) : SPEND_CATEGORIES;
+  return html`<select id=${id} value=${value || ''} onChange=${(x) => onChange(x.currentTarget.value)}>
+    ${!value && html`<option value="" disabled>Choose a category</option>`}
+    ${list.map(([c, label, icon]) => html`<option value=${c}>${icon}  ${label}</option>`)}
+  </select>`;
+}
+
+// Remember how the last payment was made on this device, so the next one is one tap.
+const LAST_PAY = 'myday-lastpay';
+function lastPay() { try { return JSON.parse(localStorage.getItem(LAST_PAY)) || {}; } catch { return {}; } }
+function rememberPay(via, bank) { try { localStorage.setItem(LAST_PAY, JSON.stringify({ via, bank })); } catch { /* private mode */ } }
+
+/** Cash / Bank / Credit card, and which bank. */
+function PaidVia({ via, bank, onChange, incoming = false }) {
+  return html`<fieldset class="field"><legend class="field-label">${incoming ? 'Received in' : 'Paid via'}</legend>
+    <${Segmented} label=${incoming ? 'Received in' : 'Paid via'} value=${via || ''} onChange=${(v) => onChange(v, v === 'cash' ? '' : bank)}
+      options=${incoming ? PAY_METHODS.filter(([v]) => v !== 'card') : PAY_METHODS} />
+    ${(via === 'bank' || via === 'card') && html`<select aria-label=${via === 'card' ? 'Card from which bank' : 'Which bank'} value=${bank || ''} onChange=${(x) => onChange(via, x.currentTarget.value)}>
+      <option value="">${via === 'card' ? 'Which bank’s card?' : 'Which bank?'}</option>
+      ${BANKS.map((b) => html`<option value=${b}>${b}</option>`)}
+    </select>`}
+  </fieldset>`;
+}
+
+/** Usual items as a dropdown; choosing one fills in the category. "Other" lets you type a name. */
+function ItemSelect({ value, onPick }) {
+  const known = COMMON_ITEMS.some(([n]) => n === value);
+  const [other, setOther] = useState(!!value && !known);
+  return html`<${Field} label="Item" id="me-item">
+    <select id="me-item" value=${other ? '__other' : value || ''} onChange=${(x) => {
+      const v = x.currentTarget.value;
+      if (v === '__other') { setOther(true); onPick(known ? '' : value, null); } else { setOther(false); onPick(v, itemCategory(v)); }
+    }}>
+      <option value="">Choose an item (optional)</option>
+      ${SPEND_CATEGORIES.map(([c, label, icon]) => {
+        const items = COMMON_ITEMS.filter(([, cat]) => cat === c);
+        return items.length ? html`<optgroup label=${`${icon} ${label}`}>${items.map(([n]) => html`<option value=${n}>${n}</option>`)}</optgroup>` : null;
+      })}
+      <option value="__other">Other (type a name)</option>
+    </select>
+    ${other && html`<input aria-label="Item name" placeholder="What was it?" value=${value || ''} onInput=${(x) => onPick(x.currentTarget.value, null)} />`}
+  <//>`;
 }
 
 function EntryEditor({ entry, book, close, type: initialType }) {
   const isNew = !entry;
-  const [e, setE] = useState(() => entry ? { ...entry } : { id: M.uid(), book, type: initialType || 'spent', amount: '', date: M.today(), status: 'pending' });
+  const [e, setE] = useState(() => {
+    if (entry) return { ...entry };
+    const t = initialType || 'spent';
+    const lp = lastPay();
+    return { id: M.uid(), book, type: t, amount: '', date: M.today(), status: 'pending', ...(HAS_VIA.has(t) && lp.via ? { via: t === 'received' && lp.via === 'card' ? 'bank' : lp.via, bank: lp.bank || '' } : {}) };
+  });
   const set = (k, v) => setE((x) => ({ ...x, [k]: v }));
   const amt = Number(e.amount);
   const valid = amt > 0 && isValidDate(e.date) && (!e.dueDate || isValidDate(e.dueDate));
@@ -43,19 +86,22 @@ function EntryEditor({ entry, book, close, type: initialType }) {
     const data = { ...e, amount: Math.round(amt * 100) / 100 };
     if (!HAS_STATUS.has(data.type)) { delete data.status; delete data.dueDate; delete data.paidAmount; }
     if (!HAS_CATEGORY.has(data.type)) delete data.category;
+    if (!HAS_VIA.has(data.type)) { delete data.via; delete data.bank; } else if (data.via) rememberPay(data.via, data.bank);
     store.put('money', data.id, data);
     close();
     toast('Saved');
   };
   const del = async () => { if (await askConfirm('Delete this entry?', { ok: 'Delete' })) { store.remove('money', e.id); close(); } };
+  const spent = e.type === 'spent';
   return html`<form class="stack" onSubmit=${save}>
     <${Segmented} label="Book" value=${e.book} onChange=${(v) => set('book', v)} options=${[['personal', 'Personal'], ['business', 'Business']]} />
     <${Field} label="Type" id="me-type"><select id="me-type" value=${e.type} onChange=${(x) => set('type', x.currentTarget.value)}>${Object.entries(MONEY_TYPES).map(([v, l]) => html`<option value=${v}>${l}</option>`)}</select><//>
+    ${spent && html`<${ItemSelect} value=${e.title} onPick=${(name, cat) => setE((x) => ({ ...x, title: name, ...(cat ? { category: cat } : {}) }))} />`}
+    ${HAS_CATEGORY.has(e.type) && html`<${Field} label="Category" id="me-cat"><${CategorySelect} id="me-cat" value=${e.category} onChange=${(v) => set('category', v)} /><//>`}
     <${Field} label="Amount (₹)" id="me-amt"><input id="me-amt" type="text" inputmode="decimal" data-autofocus=${isNew} value=${e.amount} onInput=${(x) => set('amount', numInput(x.currentTarget.value))} /><//>
-    ${HAS_CATEGORY.has(e.type) && html`<fieldset class="field"><legend class="field-label">Category</legend>
-      <${CategoryPicker} value=${e.category} onChange=${(v) => set('category', v)} /></fieldset>`}
-    <${Field} label=${e.type === 'receivable' ? 'Who owes me' : e.type === 'payable' ? 'Who I need to pay' : 'From / to (optional)'} id="me-party"><input id="me-party" value=${e.party || ''} onInput=${(x) => set('party', x.currentTarget.value)} /><//>
-    <${Field} label="What for (optional)" id="me-title"><input id="me-title" value=${e.title || ''} onInput=${(x) => set('title', x.currentTarget.value)} /><//>
+    ${HAS_VIA.has(e.type) && html`<${PaidVia} via=${e.via} bank=${e.bank} incoming=${e.type === 'received'} onChange=${(via, bank) => setE((x) => ({ ...x, via, bank }))} />`}
+    <${Field} label=${e.type === 'receivable' ? 'Who owes me' : e.type === 'payable' ? 'Who I need to pay' : spent ? 'Paid to (optional)' : 'From / to (optional)'} id="me-party"><input id="me-party" value=${e.party || ''} onInput=${(x) => set('party', x.currentTarget.value)} /><//>
+    ${!spent && html`<${Field} label="What for (optional)" id="me-title"><input id="me-title" value=${e.title || ''} onInput=${(x) => set('title', x.currentTarget.value)} /><//>`}
     <${Field} label="Date" id="me-date"><input id="me-date" type="date" value=${e.date} onInput=${(x) => set('date', x.currentTarget.value)} /><//>
     ${HAS_STATUS.has(e.type) && html`
       <${Field} label=${e.type === 'expected' ? 'Expected by (optional)' : 'Due date (optional)'} id="me-due"><input id="me-due" type="date" value=${e.dueDate || ''} onInput=${(x) => set('dueDate', x.currentTarget.value)} /><//>
@@ -110,8 +156,7 @@ function BillEditor({ bill, book, close }) {
   const del = async () => { if (await askConfirm('Delete this regular payment? Payments already recorded stay.', { ok: 'Delete' })) { store.remove('money', b.id); close(); } };
   return html`<form class="stack" onSubmit=${save}>
     <${Field} label="Name" id="bl-title"><input id="bl-title" data-autofocus=${isNew} placeholder="e.g. Car loan EMI, Netflix, School fees" value=${b.title} onInput=${(x) => set('title', x.currentTarget.value)} /><//>
-    <fieldset class="field"><legend class="field-label">Kind</legend>
-      <${CategoryPicker} ids=${BILL_KINDS} value=${b.kind} onChange=${(v) => set('kind', v)} /></fieldset>
+    <${Field} label="Kind" id="bl-kind"><${CategorySelect} id="bl-kind" ids=${BILL_KINDS} value=${b.kind} onChange=${(v) => set('kind', v)} /><//>
     <${Field} label="Amount (₹)" hint="If it changes each time, put the usual amount. You can change it when you pay." id="bl-amt"><input id="bl-amt" inputmode="decimal" value=${b.amount} onInput=${(x) => set('amount', numInput(x.currentTarget.value))} /><//>
     <${Field} label="Repeats" id="bl-rep"><select id="bl-rep" value=${b.repeat} onChange=${(x) => set('repeat', x.currentTarget.value)}>${REPEATS.map(([v, l]) => html`<option value=${v}>${l}</option>`)}</select><//>
     <${Field} label="Next due date" id="bl-due"><input id="bl-due" type="date" value=${b.nextDue} onInput=${(x) => set('nextDue', x.currentTarget.value)} /><//>
@@ -128,20 +173,23 @@ function BillEditor({ bill, book, close }) {
 function PayBill({ bill, close }) {
   const [amount, setAmount] = useState(String(bill.amount));
   const [record, setRecord] = useState(true);
+  const [pay, setPay] = useState(() => ({ via: bill.via || lastPay().via || '', bank: bill.bank || lastPay().bank || '' }));
   const amt = Number(amount);
   const after = advanceBill(bill);
   const go = () => {
     if (record) {
       const id = M.uid();
-      store.put('money', id, { id, book: bill.book, type: 'spent', category: bill.kind, amount: Math.round(amt * 100) / 100, title: bill.title, date: M.today(), billId: bill.id, forDue: bill.nextDue });
+      store.put('money', id, { id, book: bill.book, type: 'spent', category: bill.kind, amount: Math.round(amt * 100) / 100, title: bill.title, date: M.today(), billId: bill.id, forDue: bill.nextDue, ...(pay.via ? pay : {}) });
     }
-    store.put('money', bill.id, { ...after, lastPaid: M.today() });
+    if (pay.via) rememberPay(pay.via, pay.bank);
+    store.put('money', bill.id, { ...after, lastPaid: M.today(), ...(pay.via ? pay : {}) });
     close();
     toast(after.done ? `${bill.title}: all paid` : `Paid. Next due ${fmtDate(after.nextDue)}`);
   };
   return html`<div class="stack">
     <p><strong>${bill.title}</strong> · due ${fmtDate(bill.nextDue)}</p>
     <${Field} label="Amount paid (₹)" id="pb-amt"><input id="pb-amt" inputmode="decimal" value=${amount} onInput=${(x) => setAmount(numInput(x.currentTarget.value))} /><//>
+    <${PaidVia} via=${pay.via} bank=${pay.bank} onChange=${(via, bank) => setPay({ via, bank })} />
     <label class="check-row"><input type="checkbox" checked=${record} onChange=${(e) => setRecord(e.currentTarget.checked)} /> Add it to “Money spent” today</label>
     <p class="hint">${after.done ? 'This was the last payment.' : `After this, the next one is due ${fmtDate(after.nextDue, { withYear: true })}.`}</p>
     <div class="sheet-actions"><button class="btn" disabled=${record && !(amt > 0)} onClick=${go}>Mark as paid</button></div>
@@ -154,7 +202,7 @@ function BillRow({ b, today }) {
   const soon = !late && b.nextDue <= addDays(today, 3);
   return html`<li class="bill">
     <button class="bill-main" onClick=${() => openSheet('Edit regular payment', BillEditor, { bill: b })}>
-      <span class="cat-icon" aria-hidden="true">${c.icon}</span>
+      <span class="cat-icon" style=${`--h:${c.hue}`} aria-hidden="true">${c.icon}</span>
       <span class="bill-text">
         <span class="task-title">${b.title}</span>
         <span class=${'task-meta' + (late ? ' late' : soon ? ' soon' : '')}>${b.done ? 'Finished' : `${dueLabel(b.nextDue, today)} · ${shortDate(b.nextDue)}`} · ${repeatLabel(b.repeat, true)}</span>
@@ -236,19 +284,24 @@ function Dashboard({ entries, book, month, setMonth, today, cat, setCat }) {
     <${Card} title="Where it went">
       ${s.categories.length ? html`<ul class="cat-bars">${s.categories.map((c) => html`<li key=${c.id}>
         <button class=${'cat-bar' + (cat === c.id ? ' on' : '')} aria-pressed=${cat === c.id} onClick=${() => setCat(cat === c.id ? '' : c.id)}>
-          <span class="cat-name"><span aria-hidden="true">${c.icon}</span> ${c.label}</span>
+          <span class="cat-name"><span class="cat-dot" style=${`--h:${c.hue}`} aria-hidden="true">${c.icon}</span> ${c.label}</span>
           <span class="cat-amt">${money0(c.total)} <span class="muted">· ${Math.round(c.share * 100)}%</span></span>
           <span class="track" aria-hidden="true"><span style=${`width:${Math.max(2, (c.total / top) * 100)}%`}></span></span>
         </button>
       </li>`)}</ul><p class="hint">Tap a category to see its entries below.</p>`
         : html`<${EmptyState}>No spending recorded for ${monthName(month)} yet.<//>`}
     <//>
-    ${s.count > 0 && html`<${Card} title="Day by day"><${DayChart} byDay=${s.byDay} month=${month} today=${today} /><//>`}`;
+    ${s.count > 0 && html`<${Card} title="Day by day"><${DayChart} byDay=${s.byDay} month=${month} today=${today} /><//>`}
+    ${s.count > 0 && html`<${Card} title="How you paid">
+      <ul class="pay-list">${s.methods.map((m) => html`<li key=${m.label}><span>${m.label}</span><span class="cat-amt">${money0(m.total)} <span class="muted">· ${Math.round((m.total / s.spent) * 100)}%</span></span></li>`)}</ul>
+    <//>`}`;
 }
 
 const FILTERS = Object.entries(MONEY_TYPES);
 
-export function MoneyView() {
+export const openExpense = (book = 'personal') => openSheet('New expense', EntryEditor, { book, type: 'spent' });
+
+export function MoneyView({ asTab = false }) {
   useStore();
   const today = M.today();
   const [book, setBook] = useState('personal');
@@ -269,7 +322,7 @@ export function MoneyView() {
   const add = (t) => openSheet(t === 'spent' ? 'New expense' : t === 'received' ? 'Money received' : 'New entry', EntryEditor, { book, type: t });
 
   return html`<div class="screen money">
-    <${SubHeader} title="Money" />
+    ${asTab ? html`<header class="top"><div><p class="eyebrow">Spending and payments</p><h1 class="hero">Money</h1></div><${SyncPill} /></header>` : html`<${SubHeader} title="Money" />`}
     <${Segmented} label="Book" value=${book} onChange=${(v) => { setBook(v); setCat(''); }} options=${[['personal', 'Personal'], ['business', 'Business']]} />
     <div class="quick-add">
       <button class="btn" onClick=${() => add('spent')}>+ Expense</button>
@@ -293,7 +346,7 @@ export function MoneyView() {
     ${list.length ? html`<ul class="money-list">${list.map((e) => html`<li key=${e.id} class="money-row">
       <button class="money-main" onClick=${() => openSheet('Edit entry', EntryEditor, { entry: e, book })}>
         <span class="m-top"><span class="task-title">${HAS_CATEGORY.has(e.type) && html`<span aria-hidden="true">${category(e.category).icon} </span>`}${e.party || e.title || (e.type === 'spent' ? category(e.category).label : MONEY_TYPES[e.type])}</span><span class=${'amt ' + e.type}>${money(e.amount)}</span></span>
-        <span class="task-meta">${[e.type === 'spent' ? category(e.category).label : MONEY_TYPES[e.type], e.title && e.party ? e.title : '', fmtDate(e.date),
+        <span class="task-meta">${[e.type === 'spent' ? category(e.category).label : MONEY_TYPES[e.type], e.title && e.party ? e.title : '', fmtDate(e.date), payLabel(e),
           HAS_STATUS.has(e.type) && (e.status === 'paid' ? (e.type === 'payable' ? 'Paid' : 'Received') : e.status === 'partial' ? `Partly paid · ${money(outstanding(e))} left` : 'Not paid yet'),
           HAS_STATUS.has(e.type) && e.status !== 'paid' && e.dueDate && `${deadlineLabel(e.dueDate, today)} (${relDate(e.dueDate, today)})`].filter(Boolean).join(' · ')}</span>
       </button>

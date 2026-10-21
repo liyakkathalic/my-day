@@ -27,7 +27,7 @@ const MORE = {
 
 function parseHash() {
   const [tab = 'today', page, sub] = location.hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
-  return { tab: ['today', 'tasks', 'week', 'more'].includes(tab) ? tab : 'today', page, sub };
+  return { tab: ['today', 'tasks', 'money', 'week', 'more'].includes(tab) ? tab : 'today', page, sub };
 }
 
 function useRoute() {
@@ -43,13 +43,14 @@ function useRoute() {
 const ICONS = {
   today: html`<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>`,
   tasks: html`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5l1.8 1.8L9 5M4 12.5l1.8 1.8L9 11M4 18.5l1.8 1.8L9 17M12 7h8M12 13h8M12 19h8"/></svg>`,
+  money: html`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.8" y="6" width="18.4" height="13" rx="3"/><path d="M2.8 10h18.4M16 14.5h2.2"/><path d="M6 6l8.5-3 1.4 3"/></svg>`,
   week: html`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>`,
   more: html`<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5.5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18.5" cy="12" r="1.6"/></svg>`,
 };
 
 function BottomNav({ tab }) {
   return html`<nav class="bottom-nav" aria-label="Main">
-    ${[['today', 'Today'], ['tasks', 'Tasks'], ['week', 'Week'], ['more', 'More']].map(([id, label]) => html`
+    ${[['today', 'Today'], ['tasks', 'Tasks'], ['money', 'Money'], ['week', 'Week'], ['more', 'More']].map(([id, label]) => html`
       <a href=${'#' + id} class=${tab === id ? 'on' : ''} aria-current=${tab === id ? 'page' : undefined}>${ICONS[id]}<span>${label}</span></a>`)}
   </nav>`;
 }
@@ -68,6 +69,7 @@ function App() {
   if (tab === 'today') view = html`<${TodayView} />`;
   else if (tab === 'tasks') view = html`<${TasksView} sub=${page} cat=${sub} go=${go} />`;
   else if (tab === 'week') view = html`<${WeekView} />`;
+  else if (tab === 'money') view = html`<${MoneyView} asTab=${true} />`;
   else if (MORE[page]) { const V = MORE[page]; view = html`<${V} sub=${sub} />`; }
   else view = html`<${MoreView} />`;
   return html`

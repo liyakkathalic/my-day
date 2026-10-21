@@ -25,8 +25,42 @@ export const SPEND_CATEGORIES = [
   ['staff', 'Staff & wages', '👥'],
   ['other', 'Other', '📌'],
 ];
-const CAT = Object.fromEntries(SPEND_CATEGORIES.map(([id, label, icon]) => [id, { id, label, icon }]));
+// A hue per category, for its coloured icon tile.
+const CAT = Object.fromEntries(SPEND_CATEGORIES.map(([id, label, icon], i) => [id, { id, label, icon, hue: Math.round((i * 137.5) % 360) }]));
 export const category = (id) => CAT[id] || CAT.other;
+
+/** Usual expenses; picking one fills in its category. [name, category] */
+export const COMMON_ITEMS = [
+  ['Groceries', 'food'], ['Vegetables & fruits', 'food'], ['Milk', 'food'], ['Meat & fish', 'food'],
+  ['Restaurant / hotel', 'eating'], ['Tea & snacks', 'eating'], ['Swiggy / Zomato', 'eating'],
+  ['Petrol / diesel', 'transport'], ['Auto / taxi', 'transport'], ['Bus / train', 'transport'], ['Parking & toll', 'transport'], ['Vehicle service', 'transport'],
+  ['Electricity bill', 'bills'], ['Water bill', 'bills'], ['Mobile recharge', 'bills'], ['Internet / broadband', 'bills'], ['Gas cylinder', 'bills'],
+  ['House rent', 'rent'],
+  ['Home repairs', 'household'], ['Cleaning & household items', 'household'], ['Maid / helper', 'household'],
+  ['Clothes', 'shopping'], ['Online shopping', 'shopping'], ['Electronics', 'shopping'],
+  ['Medicines', 'health'], ['Doctor / hospital', 'health'],
+  ['School fees', 'education'], ['Tuition', 'education'], ['Books & stationery', 'education'],
+  ['Gifts', 'family'], ['Family support', 'family'], ['Function / wedding', 'family'],
+  ['Movies & outings', 'fun'], ['Travel / trip', 'fun'],
+  ['EMI', 'emi'], ['Loan repayment', 'emi'],
+  ['Insurance premium', 'insurance'],
+  ['OTT / app subscription', 'subs'], ['Software & renewals', 'subs'],
+  ['Credit card bill', 'card'],
+  ['Income tax / GST', 'tax'],
+  ['Editor payment', 'work'], ['Equipment & gear', 'work'],
+  ['Salary / wages', 'staff'],
+];
+export const itemCategory = (name) => COMMON_ITEMS.find(([n]) => n === name)?.[1];
+
+export const PAY_METHODS = [['cash', 'Cash'], ['bank', 'Bank / UPI'], ['card', 'Credit card']];
+export const BANKS = ['Federal Bank', 'Axis Bank', 'Canara Bank', 'State Bank of India', 'South Indian Bank'];
+/** "Cash", "Axis Bank", "Axis Bank card", or '' when not recorded. */
+export function payLabel(e) {
+  if (e.via === 'cash') return 'Cash';
+  if (e.via === 'bank') return e.bank || 'Bank';
+  if (e.via === 'card') return e.bank ? `${e.bank} card` : 'Credit card';
+  return '';
+}
 
 /** Kinds offered for regular payments (a subset of the spending categories). */
 export const BILL_KINDS = ['emi', 'rent', 'insurance', 'subs', 'education', 'bills', 'card', 'tax', 'other'];
@@ -99,8 +133,14 @@ export function monthSummary(entries, book, month) {
   }
   const categories = [...byCat].map(([id, total]) => ({ ...category(id), total, share: spent ? total / spent : 0 }))
     .sort((a, b) => b.total - a.total);
+  const byMethod = new Map();
+  for (const e of spentList) {
+    const k = payLabel(e) || 'Not noted';
+    byMethod.set(k, (byMethod.get(k) || 0) + amt(e));
+  }
+  const methods = [...byMethod].map(([label, total]) => ({ label, total })).sort((a, b) => b.total - a.total);
   const [y, m] = month.split('-').map(Number);
   const byDay = Array.from({ length: daysInMonth(y, m) }, () => 0);
   for (const e of spentList) byDay[Number(e.date.slice(8)) - 1] += amt(e);
-  return { spent, received, categories, byDay, count: spentList.length };
+  return { spent, received, categories, methods, byDay, count: spentList.length };
 }
