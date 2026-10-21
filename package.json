@@ -1,0 +1,27 @@
+{
+  "name": "my-day",
+  "version": "0.1.0",
+  "description": "My Day — personal planning PWA",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env server/index.js",
+    "dev": "INSECURE_COOKIES=1 node --disable-warning=ExperimentalWarning --env-file-if-exists=.env --watch server/index.js",
+    "set-password": "node --disable-warning=ExperimentalWarning --env-file-if-exists=.env server/set-password.js",
+    "gen-vapid": "node server/gen-vapid.js",
+    "test": "node --test test/*.test.js",
+    "test:e2e": "node test/e2e.mjs",
+    "icons": "node scripts/make-icons.mjs"
+  },
+  "dependencies": {
+    "htm": "^3.1.1",
+    "preact": "^10.29.8",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.64.1"
+  },
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  }
+}
