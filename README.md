@@ -26,9 +26,10 @@ All three come from the same code; `MYDAY_MODE` (see `public/js/config.js`) swit
 
 ### Publishing on GitHub Pages
 
-1. Push this project to a public GitHub repository named `my-day`.
-2. Repository → Settings → Pages → Build and deployment → Source: **GitHub Actions**.
-3. Every push to `main` runs the tests, builds `dist-pages/` and publishes it.
+Live at **https://liyakkathalic.github.io/my-day/**. Every push to `main` runs the
+tests, builds `dist-pages/` and force-pushes it to the `gh-pages` branch
+(`.github/workflows/pages.yml`). Repository → Settings → Pages must be set to
+**Deploy from a branch → gh-pages → / (root)**.
 
 ## Run it on your computer (5 minutes)
 
